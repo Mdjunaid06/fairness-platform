@@ -1,0 +1,57 @@
+# Node
+node_modules/
+npm-debug.log*
+.npm
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+env/
+.venv/
+*.pyc
+.Python
+
+# Environment variables (NEVER commit these)
+.env
+.env.local
+.env.*.local
+*.env
+
+# Firebase
+.firebase/
+firebase-debug.log
+
+# Google Cloud
+service-account-key.json
+gcloud-credentials.json
+*.json.key
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Build outputs
+frontend/build/
+frontend/dist/
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+.coverage
+htmlcov/
+
+# Temp files
+*.tmp
+*.temp
+tmp/
+temp/
