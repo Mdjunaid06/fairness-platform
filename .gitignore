@@ -55,3 +55,5 @@ htmlcov/
 *.temp
 tmp/
 temp/
+
+.env
