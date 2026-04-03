@@ -1,4 +1,4 @@
-const { uploadToGCS } = require("../utils/gcsUpload");
+const { uploadToFirebaseStorage, getFileFromFirestore } = require("../utils/gcsUpload");
 const { callAIEngine } = require("../utils/aiEngineClient");
 const admin = require("../config/firebase");
 
@@ -9,37 +9,52 @@ exports.uploadDataset = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
+
     const userId = req.user.uid;
     const fileName = `${userId}/${Date.now()}_${req.file.originalname}`;
-    const gcsUri = await uploadToGCS(
+
+    const { gcsUri, fileId } = await uploadToFirebaseStorage(
       req.file.buffer,
       fileName,
       req.file.mimetype
     );
+
     const docRef = await db.collection("uploads").add({
       userId,
       fileName: req.file.originalname,
       gcsUri,
+      fileId,
       uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
       status: "uploaded",
     });
-    res.json({ uploadId: docRef.id, gcsUri, message: "Uploaded successfully" });
+
+    res.json({
+      uploadId: docRef.id,
+      gcsUri,
+      fileId,
+      message: "File uploaded successfully"
+    });
   } catch (err) {
+    console.error("Upload error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
 
 exports.analyzeDataset = async (req, res) => {
   try {
-    const { gcsUri, targetColumn, sensitiveFeatures, uploadId } = req.body;
-    if (!gcsUri || !targetColumn || !sensitiveFeatures) {
+    const { gcsUri, targetColumn, sensitiveFeatures, uploadId, fileId } = req.body;
+
+    if (!targetColumn || !sensitiveFeatures) {
       return res.status(400).json({ error: "Missing required fields" });
     }
+
     const analysisResult = await callAIEngine("/analyze/dataset", {
       gcs_uri: gcsUri,
+      file_id: fileId,
       target_column: targetColumn,
       sensitive_features: sensitiveFeatures,
     });
+
     const reportRef = await db.collection("reports").add({
       userId: req.user.uid,
       uploadId: uploadId || null,
@@ -48,21 +63,26 @@ exports.analyzeDataset = async (req, res) => {
       result: analysisResult,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
     res.json({ reportId: reportRef.id, analysis: analysisResult });
   } catch (err) {
+    console.error("Analysis error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
 
 exports.mitigateDataset = async (req, res) => {
   try {
-    const { gcsUri, targetColumn, sensitiveFeatures, strategy } = req.body;
+    const { gcsUri, targetColumn, sensitiveFeatures, strategy, fileId } = req.body;
+
     const result = await callAIEngine("/mitigate", {
       gcs_uri: gcsUri,
+      file_id: fileId,
       target_column: targetColumn,
       sensitive_features: sensitiveFeatures,
       strategy: strategy || "resample",
     });
+
     await db.collection("mitigations").add({
       userId: req.user.uid,
       originalGcsUri: gcsUri,
@@ -70,8 +90,10 @@ exports.mitigateDataset = async (req, res) => {
       result,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
     res.json({ mitigation: result });
   } catch (err) {
+    console.error("Mitigation error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };

@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 import os
 from dotenv import load_dotenv
 
@@ -23,17 +23,20 @@ app.add_middleware(
 )
 
 
+# ── HEALTH ────────────────────────────────────────────────────
 @app.get("/health")
 def health_check():
     return {"status": "ok", "service": "ai-engine"}
 
 
-# ── DATASET ANALYSIS ─────────────────────────────────────────────────────────
+# ── DATASET ANALYSIS ──────────────────────────────────────────
 class DatasetAnalysisRequest(BaseModel):
+    model_config = {"protected_namespaces": ()}
     gcs_uri: str
     target_column: str
     sensitive_features: List[str]
     task_type: str = "classification"
+    file_id: Optional[str] = None
 
 
 @app.post("/analyze/dataset")
@@ -44,19 +47,22 @@ async def analyze_dataset(request: DatasetAnalysisRequest):
         result = analyzer.analyze(
             gcs_uri=request.gcs_uri,
             target_column=request.target_column,
-            sensitive_features=request.sensitive_features
+            sensitive_features=request.sensitive_features,
+            file_id=request.file_id
         )
         return JSONResponse(content=result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── MODEL AUDIT ───────────────────────────────────────────────────────────────
+# ── MODEL AUDIT ───────────────────────────────────────────────
 class ModelAuditRequest(BaseModel):
+    model_config = {"protected_namespaces": ()}
     gcs_uri: str
     target_column: str
     sensitive_features: List[str]
     model_type: str = "auto"
+    file_id: Optional[str] = None
 
 
 @app.post("/analyze/model")
@@ -75,8 +81,9 @@ async def audit_model(request: ModelAuditRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── LLM TESTING ───────────────────────────────────────────────────────────────
+# ── LLM TESTING ───────────────────────────────────────────────
 class LLMTestRequest(BaseModel):
+    model_config = {"protected_namespaces": ()}
     provider: str
     model_name: str
     test_suite: str = "default"
@@ -99,12 +106,14 @@ async def test_llm_bias(request: LLMTestRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── MITIGATION ────────────────────────────────────────────────────────────────
+# ── MITIGATION ────────────────────────────────────────────────
 class MitigationRequest(BaseModel):
+    model_config = {"protected_namespaces": ()}
     gcs_uri: str
     target_column: str
     sensitive_features: List[str]
     strategy: str
+    file_id: Optional[str] = None
 
 
 @app.post("/mitigate")
@@ -117,7 +126,10 @@ async def mitigate_bias(request: MitigationRequest):
             from mitigation.feature_remover import FeatureRemover
             engine = FeatureRemover()
         else:
-            raise HTTPException(status_code=400, detail="Unknown strategy")
+            raise HTTPException(
+                status_code=400,
+                detail="Unknown strategy"
+            )
 
         result = engine.mitigate(
             gcs_uri=request.gcs_uri,
@@ -133,4 +145,9 @@ async def mitigate_bias(request: MitigationRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )

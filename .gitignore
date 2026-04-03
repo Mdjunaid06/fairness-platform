@@ -7,53 +7,42 @@ npm-debug.log*
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.egg-info/
-dist/
-build/
-.eggs/
 venv/
 env/
 .venv/
 *.pyc
-.Python
 
-# Environment variables (NEVER commit these)
+# Environment variables — NEVER commit
 .env
 .env.local
 .env.*.local
 *.env
 
-# Firebase
+# Firebase — NEVER commit
 .firebase/
 firebase-debug.log
+.firebaserc
 
-# Google Cloud
+# Google Cloud — NEVER commit
 service-account-key.json
+*-firebase-adminsdk-*.json
 gcloud-credentials.json
-*.json.key
+
+# Build outputs
+frontend/dist/
+frontend/build/
+*.tsbuildinfo
 
 # IDE
 .vscode/
 .idea/
-*.swp
-*.swo
 .DS_Store
 
-# Build outputs
-frontend/build/
-frontend/dist/
-*.tsbuildinfo
-
-# Test coverage
+# Coverage
 coverage/
 .coverage
 htmlcov/
 
-# Temp files
+# Temp
 *.tmp
-*.temp
 tmp/
-temp/
-
-.env

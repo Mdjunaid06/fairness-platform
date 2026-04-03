@@ -7,6 +7,7 @@ if (!admin.apps.length) {
       path.resolve(process.env.GCS_KEY_FILE || "./service-account-key.json")
     ),
     projectId: process.env.FIREBASE_PROJECT_ID,
+    storageBucket: `${process.env.FIREBASE_PROJECT_ID}.firebasestorage.app`,
   });
 }
 

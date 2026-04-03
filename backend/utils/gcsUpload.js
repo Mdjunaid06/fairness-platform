@@ -1,16 +1,33 @@
-const { Storage } = require("@google-cloud/storage");
+const admin = require("../config/firebase");
 
-const storage = new Storage({ keyFilename: process.env.GCS_KEY_FILE });
-const BUCKET_NAME = process.env.GCS_BUCKET_NAME;
+const db = admin.firestore();
 
-const uploadToGCS = async (buffer, destination, contentType) => {
-  const bucket = storage.bucket(BUCKET_NAME);
-  const blob = bucket.file(destination);
-  await blob.save(buffer, {
+const uploadToFirestore = async (buffer, fileName, contentType) => {
+  const base64Content = buffer.toString("base64");
+
+  const docRef = await db.collection("file_storage").add({
+    fileName,
     contentType,
-    metadata: { cacheControl: "no-cache" },
+    content: base64Content,
+    uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
+    sizeBytes: buffer.length,
   });
-  return `gs://${BUCKET_NAME}/${destination}`;
+
+  const firestoreUri = `firestore://file_storage/${docRef.id}`;
+
+  return {
+    gcsUri: firestoreUri,
+    fileId: docRef.id,
+  };
 };
 
-module.exports = { uploadToGCS };
+const getFileFromFirestore = async (fileId) => {
+  const doc = await db.collection("file_storage").doc(fileId).get();
+  if (!doc.exists) {
+    throw new Error("File not found");
+  }
+  const data = doc.data();
+  return Buffer.from(data.content, "base64");
+};
+
+module.exports = { uploadToFirebaseStorage: uploadToFirestore, getFileFromFirestore };

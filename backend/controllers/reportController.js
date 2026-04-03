@@ -7,8 +7,6 @@ exports.getReports = async (req, res) => {
     const snapshot = await db
       .collection("reports")
       .where("userId", "==", req.user.uid)
-      .orderBy("createdAt", "desc")
-      .limit(20)
       .get();
     const reports = snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -16,6 +14,7 @@ exports.getReports = async (req, res) => {
     }));
     res.json({ reports });
   } catch (err) {
+    console.error("Firestore error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
