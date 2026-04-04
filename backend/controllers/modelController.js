@@ -18,11 +18,11 @@ exports.auditModel = async (req, res) => {
       });
     }
 
-    const result = await callAIEngine("/analyze/model", {
-      gcs_uri: gcsUri || "firestore://file_storage/" + fileId,
-      file_id: fileId,
-      target_column: targetColumn,
-      sensitive_features: sensitiveFeatures,
+        const result = await callAIEngine("/analyze/model", {
+        gcs_uri: gcsUri || "",
+        file_id: fileId || null,
+        target_column: targetColumn,
+        sensitive_features: sensitiveFeatures,
     });
 
     await db.collection("reports").add({

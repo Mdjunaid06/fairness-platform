@@ -39,12 +39,12 @@ export default function ModelAudit() {
 
       setStatus("Training model and auditing fairness...");
       const res = await auditModel({
-        gcsUri: uri,
-        fileId: fid,
-        targetColumn,
-        sensitiveFeatures: sensitiveFeatures
-          .split(",")
-          .map((s) => s.trim()),
+      gcsUri: uri,
+      fileId: fid,
+      targetColumn,
+      sensitiveFeatures: sensitiveFeatures
+        .split(",")
+        .map((s) => s.trim()),
       });
       setResults(res.data.analysis);
       setStatus("Audit complete!");

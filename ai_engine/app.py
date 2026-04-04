@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+# ── JSON SERIALIZER ───────────────────────────────────────────
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.bool_):
@@ -28,6 +29,7 @@ def json_safe(result):
     return json.loads(json.dumps(result, cls=NumpyEncoder))
 
 
+# ── APP SETUP ─────────────────────────────────────────────────
 app = FastAPI(
     title="Universal AI Fairness Engine",
     description="Bias Detection and Mitigation API",
@@ -43,11 +45,13 @@ app.add_middleware(
 )
 
 
+# ── HEALTH ────────────────────────────────────────────────────
 @app.get("/health")
 def health_check():
     return {"status": "ok", "service": "ai-engine"}
 
 
+# ── DATASET ANALYSIS ──────────────────────────────────────────
 class DatasetAnalysisRequest(BaseModel):
     model_config = {"protected_namespaces": ()}
     gcs_uri: str
@@ -73,9 +77,10 @@ async def analyze_dataset(request: DatasetAnalysisRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── MODEL AUDIT ───────────────────────────────────────────────
 class ModelAuditRequest(BaseModel):
     model_config = {"protected_namespaces": ()}
-    gcs_uri: str
+    gcs_uri: Optional[str] = ""
     target_column: str
     sensitive_features: List[str]
     model_type: str = "auto"
@@ -88,16 +93,18 @@ async def audit_model(request: ModelAuditRequest):
         from bias_detection.model_auditor import ModelAuditor
         auditor = ModelAuditor()
         result = auditor.audit(
-            gcs_uri=request.gcs_uri,
+            gcs_uri=request.gcs_uri or "",
             target_column=request.target_column,
             sensitive_features=request.sensitive_features,
-            model_type=request.model_type
+            model_type=request.model_type,
+            file_id=request.file_id
         )
         return JSONResponse(content=json_safe(result))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── LLM TESTING ───────────────────────────────────────────────
 class LLMTestRequest(BaseModel):
     model_config = {"protected_namespaces": ()}
     provider: str
@@ -122,6 +129,7 @@ async def test_llm_bias(request: LLMTestRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ── MITIGATION ────────────────────────────────────────────────
 class MitigationRequest(BaseModel):
     model_config = {"protected_namespaces": ()}
     gcs_uri: str
@@ -145,6 +153,7 @@ async def mitigate_bias(request: MitigationRequest):
                 status_code=400,
                 detail="Unknown strategy"
             )
+
         result = engine.mitigate(
             gcs_uri=request.gcs_uri,
             target_column=request.target_column,
@@ -159,4 +168,9 @@ async def mitigate_bias(request: MitigationRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )
