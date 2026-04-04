@@ -30,7 +30,7 @@ export default function ModelAudit() {
     setLoading(true);
     setResults(null);
     try {
-      setStatus("Uploading dataset...");
+      setStatus("Uploading file to Firestore...");
       const uploadRes = await uploadDataset(file);
       const uri = uploadRes.data.gcsUri;
       const fid = uploadRes.data.fileId;

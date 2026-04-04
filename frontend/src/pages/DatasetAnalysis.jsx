@@ -30,7 +30,7 @@ export default function DatasetAnalysis() {
     setLoading(true);
     setResults(null);
     try {
-      setStatus("Uploading to Cloud Storage...");
+      setStatus("Uploading file...");
       const uploadRes = await uploadDataset(file);
       const uri = uploadRes.data.gcsUri;
       setGcsUri(uri);
