@@ -4,9 +4,29 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import os
+import json
+import numpy as np
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
+
+
+def json_safe(result):
+    return json.loads(json.dumps(result, cls=NumpyEncoder))
+
 
 app = FastAPI(
     title="Universal AI Fairness Engine",
@@ -23,13 +43,11 @@ app.add_middleware(
 )
 
 
-# ── HEALTH ────────────────────────────────────────────────────
 @app.get("/health")
 def health_check():
     return {"status": "ok", "service": "ai-engine"}
 
 
-# ── DATASET ANALYSIS ──────────────────────────────────────────
 class DatasetAnalysisRequest(BaseModel):
     model_config = {"protected_namespaces": ()}
     gcs_uri: str
@@ -50,12 +68,11 @@ async def analyze_dataset(request: DatasetAnalysisRequest):
             sensitive_features=request.sensitive_features,
             file_id=request.file_id
         )
-        return JSONResponse(content=result)
+        return JSONResponse(content=json_safe(result))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── MODEL AUDIT ───────────────────────────────────────────────
 class ModelAuditRequest(BaseModel):
     model_config = {"protected_namespaces": ()}
     gcs_uri: str
@@ -76,12 +93,11 @@ async def audit_model(request: ModelAuditRequest):
             sensitive_features=request.sensitive_features,
             model_type=request.model_type
         )
-        return JSONResponse(content=result)
+        return JSONResponse(content=json_safe(result))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── LLM TESTING ───────────────────────────────────────────────
 class LLMTestRequest(BaseModel):
     model_config = {"protected_namespaces": ()}
     provider: str
@@ -101,12 +117,11 @@ async def test_llm_bias(request: LLMTestRequest):
             test_suite=request.test_suite,
             custom_prompts=request.custom_prompts
         )
-        return JSONResponse(content=result)
+        return JSONResponse(content=json_safe(result))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── MITIGATION ────────────────────────────────────────────────
 class MitigationRequest(BaseModel):
     model_config = {"protected_namespaces": ()}
     gcs_uri: str
@@ -130,13 +145,12 @@ async def mitigate_bias(request: MitigationRequest):
                 status_code=400,
                 detail="Unknown strategy"
             )
-
         result = engine.mitigate(
             gcs_uri=request.gcs_uri,
             target_column=request.target_column,
             sensitive_features=request.sensitive_features
         )
-        return JSONResponse(content=result)
+        return JSONResponse(content=json_safe(result))
     except HTTPException:
         raise
     except Exception as e:
@@ -145,9 +159,4 @@ async def mitigate_bias(request: MitigationRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

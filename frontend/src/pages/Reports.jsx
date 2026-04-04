@@ -59,12 +59,19 @@ export default function Reports() {
             </div>
             <span
               style={{
-                color: (r.result?.overall_score?.score || 0) >= 80 ? "#22c55e" : "#ef4444",
+                color: (() => {
+                    const score = r.result?.overall_score?.score ??
+                      r.result?.summary?.fairness_score ?? 0;
+                    return score >= 80 ? "#22c55e" : 
+                          score >= 60 ? "#f59e0b" : "#ef4444";
+                  })(),
                 fontWeight: "700",
                 fontSize: "18px",
               }}
             >
-              {r.result?.overall_score?.score ?? "N/A"}/100
+              {r.result?.overall_score?.score ?? 
+                r.result?.summary?.fairness_score ?? 
+                "N/A"}/100
             </span>
           </div>
         ))
