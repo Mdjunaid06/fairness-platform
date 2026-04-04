@@ -583,7 +583,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 
 <div align="center">
 
-**Built with for Google Solution Challenge 2026**
+**Google Solution Challenge 2026**
 
 *Addressing UN SDG 10 — Reduced Inequalities*
 
