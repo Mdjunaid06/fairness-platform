@@ -261,8 +261,17 @@ export default function DatasetAnalysis() {
         >
           <h3 style={{ margin: "0 0 8px" }}>✅ Mitigation Applied: {mitResult.strategy}</h3>
           <p style={{ margin: "4px 0" }}>
-            Rows before: {mitResult.rows_before} → after: {mitResult.rows_after}
-          </p>
+  Columns before: {mitResult.columns_before} → after: {mitResult.columns_after}
+  {mitResult.rows_before && (
+    <span> | Rows: {mitResult.rows_before} → {mitResult.rows_after}</span>
+  )}
+</p>
+        <p style={{ margin: "4px 0", fontSize: "13px", color: "#374151" }}>
+          Removed: {mitResult.removed_sensitive_features?.join(", ")}
+          {mitResult.removed_proxy_features?.length > 0 &&
+            ` + proxy features: ${mitResult.removed_proxy_features.join(", ")}`
+          }
+        </p>
           <p style={{ margin: "4px 0", fontSize: "13px", color: "#6b7280" }}>
             Saved to: {mitResult.output_gcs_uri}
           </p>
