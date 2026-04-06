@@ -97,3 +97,18 @@ exports.mitigateDataset = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+exports.detectColumns = async (req, res) => {
+  try {
+    const { gcsUri, fileId } = req.body;
+
+    const result = await callAIEngine("/detect/columns", {
+      gcs_uri: gcsUri || "",
+      file_id: fileId || null,
+    });
+
+    res.json({ detection: result });
+  } catch (err) {
+    console.error("Column detection error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+};

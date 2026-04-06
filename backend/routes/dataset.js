@@ -4,7 +4,8 @@ const multer = require("multer");
 const {
   uploadDataset,
   analyzeDataset,
-  mitigateDataset
+  mitigateDataset,
+  detectColumns
 } = require("../controllers/datasetController");
 
 const upload = multer({
@@ -15,5 +16,7 @@ const upload = multer({
 router.post("/upload", upload.single("file"), uploadDataset);
 router.post("/analyze", analyzeDataset);
 router.post("/mitigate", mitigateDataset);
+// router.post("/detect", analyzeDataset);
+router.post("/detect", detectColumns);
 
 module.exports = router;

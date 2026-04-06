@@ -39,3 +39,6 @@ export const testLLMBias = (payload) =>
 export const getReports = () => apiClient.get("/api/reports");
 
 export const getReport = (id) => apiClient.get(`/api/reports/${id}`);
+
+export const detectColumns = (payload) =>
+  apiClient.post("/api/dataset/detect", payload);

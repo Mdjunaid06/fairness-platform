@@ -165,6 +165,26 @@ async def mitigate_bias(request: MitigationRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# ── COLUMN DETECTION ──────────────────────────────────────────
+class ColumnDetectRequest(BaseModel):
+    model_config = {"protected_namespaces": ()}
+    gcs_uri: Optional[str] = ""
+    file_id: Optional[str] = None
+
+
+@app.post("/detect/columns")
+async def detect_columns(request: ColumnDetectRequest):
+    try:
+        from bias_detection.column_detector import ColumnDetector
+        detector = ColumnDetector()
+        result = detector.detect(
+            gcs_uri=request.gcs_uri,
+            file_id=request.file_id
+        )
+        return JSONResponse(content=json_safe(result))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     import uvicorn
