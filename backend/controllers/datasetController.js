@@ -112,3 +112,32 @@ exports.detectColumns = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+exports.listDemoDatasets = async (req, res) => {
+  try {
+    const result = await callAIEngine("/demo/datasets", null, "GET");
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.analyzeDemoDataset = async (req, res) => {
+  try {
+    const { datasetKey } = req.body;
+    const result = await callAIEngine("/demo/analyze", {
+      dataset_key: datasetKey
+    });
+
+    await db.collection("reports").add({
+      userId: req.user.uid,
+      type: "dataset",
+      gcsUri: `demo://${datasetKey}`,
+      result,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    res.json({ analysis: result, reportSaved: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

@@ -185,6 +185,77 @@ async def detect_columns(request: ColumnDetectRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# ── DEMO DATASETS ─────────────────────────────────────────────
+@app.get("/demo/datasets")
+async def list_demo_datasets():
+    try:
+        from bias_detection.demo_datasets import DEMO_DATASETS
+        return JSONResponse(content={
+            "datasets": [
+                {
+                    "key": k,
+                    "name": v["name"],
+                    "description": v["description"],
+                    "sensitive_features": v["sensitive_features"],
+                    "target": v["target"],
+                    "known_bias": v["known_bias"],
+                    "legal_context": v["legal_context"],
+                    "source": v["source"]
+                }
+                for k, v in DEMO_DATASETS.items()
+            ]
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class DemoDatasetRequest(BaseModel):
+    model_config = {"protected_namespaces": ()}
+    dataset_key: str
+
+
+@app.post("/demo/analyze")
+async def analyze_demo_dataset(request: DemoDatasetRequest):
+    try:
+        from bias_detection.demo_datasets import (
+            generate_demo_dataset, DEMO_DATASETS
+        )
+        from bias_detection.dataset_analyzer import DatasetAnalyzer
+
+        if request.dataset_key not in DEMO_DATASETS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown dataset: {request.dataset_key}"
+            )
+
+        config = DEMO_DATASETS[request.dataset_key]
+        df = generate_demo_dataset(request.dataset_key)
+
+        analyzer = DatasetAnalyzer()
+        result = analyzer.analyze(
+            gcs_uri="demo://",
+            target_column=config["target"],
+            sensitive_features=config["sensitive_features"],
+            file_id=None,
+            df_override=df
+        )
+
+        result["demo_info"] = {
+            "key": request.dataset_key,
+            "name": config["name"],
+            "description": config["description"],
+            "target": config["target"],
+            "sensitive_features": config["sensitive_features"],
+            "known_bias": config["known_bias"],
+            "legal_context": config["legal_context"],
+            "source": config["source"]
+        }
+        return JSONResponse(content=json_safe(result))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -2,24 +2,65 @@ import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import {
   BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  CartesianGrid, Tooltip, ResponsiveContainer
 } from "recharts";
-import { uploadDataset, analyzeDataset, mitigateDataset, detectColumns } from "../services/api";
-
-const COLORS = ["#3b82f6", "#ef4444", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899"];
+import {
+  uploadDataset,
+  analyzeDataset,
+  mitigateDataset,
+  detectColumns,
+  analyzeDemoDataset
+} from "../services/api";
 
 const RISK_COLORS = {
   High: { bg: "#fee2e2", text: "#991b1b", border: "#fecaca" },
   Medium: { bg: "#fef3c7", text: "#92400e", border: "#fde68a" },
   Low: { bg: "#f0fdf4", text: "#166534", border: "#bbf7d0" },
+  Critical: { bg: "#fdf2f8", text: "#701a75", border: "#f0abfc" },
+  Moderate: { bg: "#fff7ed", text: "#9a3412", border: "#fed7aa" },
 };
+
+const DEMO_DATASETS = [
+  {
+    key: "compas",
+    name: "COMPAS Recidivism",
+    desc: "Criminal justice AI bias",
+    badge: "ProPublica 2016",
+    bg: "#fee2e2",
+    accent: "#dc2626"
+  },
+  {
+    key: "adult_census",
+    name: "Adult Census Income",
+    desc: "Income prediction bias",
+    badge: "UCI ML Repo",
+    bg: "#fef3c7",
+    accent: "#d97706"
+  },
+  {
+    key: "german_credit",
+    name: "German Credit Risk",
+    desc: "Lending discrimination",
+    badge: "UCI ML Repo",
+    bg: "#eff6ff",
+    accent: "#2563eb"
+  },
+  {
+    key: "loan_approval",
+    name: "Loan Approval",
+    desc: "Banking bias patterns",
+    badge: "Synthetic",
+    bg: "#f0fdf4",
+    accent: "#16a34a"
+  },
+];
 
 export default function DatasetAnalysis() {
   const [file, setFile] = useState(null);
   const [gcsUri, setGcsUri] = useState("");
   const [fileId, setFileId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(null);
   const [status, setStatus] = useState("");
   const [step, setStep] = useState("upload");
   const [detection, setDetection] = useState(null);
@@ -47,23 +88,15 @@ export default function DatasetAnalysis() {
       setGcsUri(uri);
       setFileId(fid);
 
-      setStatus("Detecting sensitive columns...");
-      const detectRes = await detectColumns({
-        gcsUri: uri,
-        fileId: fid
-      });
-
+      setStatus("Auto-detecting sensitive columns...");
+      const detectRes = await detectColumns({ gcsUri: uri, fileId: fid });
       const det = detectRes.data.detection;
       setDetection(det);
 
-      // Auto-select recommended options
       if (det.auto_config.recommended_target) {
         setSelectedTarget(det.auto_config.recommended_target);
       }
-      setSelectedSensitive(
-        det.auto_config.recommended_sensitive || []
-      );
-
+      setSelectedSensitive(det.auto_config.recommended_sensitive || []);
       setStep("configure");
       setStatus("");
     } catch (err) {
@@ -73,11 +106,31 @@ export default function DatasetAnalysis() {
     }
   };
 
+  const handleDemoDataset = async (datasetKey) => {
+    setDemoLoading(datasetKey);
+    setLoading(true);
+    setStatus("Loading demo dataset and running analysis...");
+    try {
+      const res = await analyzeDemoDataset(datasetKey);
+      const analysis = res.data.analysis;
+      setResults(analysis);
+      setSelectedTarget(analysis.demo_info?.target || "");
+      setSelectedSensitive(analysis.demo_info?.sensitive_features || []);
+      setStep("results");
+      setActiveTab("overview");
+      setStatus("");
+    } catch (err) {
+      setStatus("Error: " + (err.response?.data?.error || err.message));
+    } finally {
+      setLoading(false);
+      setDemoLoading(null);
+    }
+  };
+
   const handleAnalyze = async () => {
     if (!selectedTarget) return alert("Please select a target column");
     if (selectedSensitive.length === 0)
       return alert("Please select at least one sensitive feature");
-
     setLoading(true);
     setStatus("Running deep bias analysis...");
     try {
@@ -89,6 +142,7 @@ export default function DatasetAnalysis() {
       });
       setResults(res.data.analysis);
       setStep("results");
+      setActiveTab("overview");
       setStatus("");
     } catch (err) {
       setStatus("Error: " + (err.response?.data?.error || err.message));
@@ -128,7 +182,7 @@ export default function DatasetAnalysis() {
         .map(([label, count]) => ({ label: String(label), count }))
     : [];
 
-  // ── STEP 1: UPLOAD ─────────────────────────────────────────
+  // ── STEP 1: UPLOAD ──────────────────────────────────────────
   if (step === "upload") {
     return (
       <div style={{ padding: "32px", maxWidth: "800px", margin: "0 auto" }}>
@@ -137,10 +191,11 @@ export default function DatasetAnalysis() {
         </p>
         <h1 style={{ margin: "0 0 8px" }}>Dataset Analysis</h1>
         <p style={{ color: "#6b7280", margin: "0 0 32px" }}>
-          Upload your CSV dataset. Our AI will automatically detect
-          sensitive features, proxy variables, and potential bias sources.
+          Upload your CSV. Our AI automatically detects sensitive features,
+          proxy variables, and bias sources — no manual configuration needed.
         </p>
 
+        {/* Upload Zone */}
         <div
           {...getRootProps()}
           style={{
@@ -150,8 +205,8 @@ export default function DatasetAnalysis() {
             textAlign: "center",
             cursor: "pointer",
             background: isDragActive ? "#eff6ff" : "#fafafa",
-            transition: "all 0.2s",
             marginBottom: "24px",
+            transition: "all 0.2s"
           }}
         >
           <input {...getInputProps()} />
@@ -170,10 +225,10 @@ export default function DatasetAnalysis() {
           ) : (
             <div>
               <p style={{ margin: "0 0 4px", fontWeight: "500", fontSize: "16px" }}>
-                {isDragActive ? "Drop it here!" : "Drag & drop your CSV"}
+                {isDragActive ? "Drop it here!" : "Drag & drop your CSV file"}
               </p>
               <p style={{ margin: 0, color: "#6b7280", fontSize: "14px" }}>
-                or click to browse files
+                or click to browse
               </p>
             </div>
           )}
@@ -181,31 +236,56 @@ export default function DatasetAnalysis() {
 
         {/* Demo Datasets */}
         <div style={{ marginBottom: "24px" }}>
-          <p style={{ color: "#6b7280", fontSize: "13px", marginBottom: "12px" }}>
-            Or try a famous bias dataset:
+          <p style={{ color: "#6b7280", fontSize: "13px", marginBottom: "12px", fontWeight: "500" }}>
+            ⚡ Or try a famous real-world bias dataset instantly:
           </p>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            {[
-              { name: "COMPAS Recidivism", desc: "Criminal justice AI bias" },
-              { name: "Adult Census", desc: "Income prediction bias" },
-              { name: "German Credit", desc: "Credit scoring bias" },
-              { name: "Loan Approval", desc: "Banking discrimination" },
-            ].map((d, i) => (
-              <button key={i} style={{
-                padding: "8px 14px",
-                background: "white",
-                border: "1px solid #e5e7eb",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontSize: "13px",
-                textAlign: "left"
-              }}>
-                <div style={{ fontWeight: "500" }}>{d.name}</div>
-                <div style={{ color: "#6b7280", fontSize: "11px" }}>{d.desc}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            {DEMO_DATASETS.map((d, i) => (
+              <button
+                key={i}
+                onClick={() => handleDemoDataset(d.key)}
+                disabled={loading}
+                style={{
+                  padding: "14px 16px",
+                  background: d.bg,
+                  border: `1px solid ${d.accent}33`,
+                  borderRadius: "10px",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  textAlign: "left",
+                  opacity: demoLoading === d.key ? 0.7 : 1,
+                  transition: "all 0.15s"
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div style={{ fontWeight: "500", fontSize: "14px" }}>
+                    {demoLoading === d.key ? "⏳ " : ""}{d.name}
+                  </div>
+                  <span style={{
+                    fontSize: "10px",
+                    background: "white",
+                    color: d.accent,
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    border: `1px solid ${d.accent}44`,
+                    whiteSpace: "nowrap",
+                    marginLeft: "8px"
+                  }}>
+                    {d.badge}
+                  </span>
+                </div>
+                <div style={{ color: "#6b7280", fontSize: "12px", marginTop: "4px" }}>
+                  {d.desc}
+                </div>
               </button>
             ))}
           </div>
         </div>
+
+        {status && (
+          <p style={{ color: "#6b7280", textAlign: "center", marginBottom: "16px" }}>
+            {status}
+          </p>
+        )}
 
         <button
           onClick={handleUploadAndDetect}
@@ -233,28 +313,26 @@ export default function DatasetAnalysis() {
     return (
       <div style={{ padding: "32px", maxWidth: "900px", margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
-          <button onClick={() => setStep("upload")} style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: "14px" }}>
+          <button
+            onClick={() => setStep("upload")}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: "14px" }}
+          >
             ← Back
           </button>
           <div>
             <h1 style={{ margin: 0 }}>Configure Analysis</h1>
             <p style={{ margin: 0, color: "#6b7280", fontSize: "14px" }}>
-              {detection.total_rows} rows · {detection.total_columns} columns · AI detected {detection.sensitive_features.length} sensitive features
+              {detection.total_rows} rows · {detection.total_columns} columns ·
+              AI detected {detection.sensitive_features.length} sensitive features
             </p>
           </div>
         </div>
 
-        {/* Target Column Selection */}
-        <div style={{
-          background: "white",
-          border: "1px solid #e5e7eb",
-          borderRadius: "12px",
-          padding: "20px",
-          marginBottom: "20px"
-        }}>
+        {/* Target Column */}
+        <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "20px", marginBottom: "20px" }}>
           <h3 style={{ margin: "0 0 4px" }}>🎯 Target Column</h3>
           <p style={{ color: "#6b7280", fontSize: "14px", margin: "0 0 16px" }}>
-            The column your model predicts (outcome variable)
+            The outcome your model predicts
           </p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
             {detection.suggested_targets.map((t, i) => (
@@ -266,22 +344,20 @@ export default function DatasetAnalysis() {
                   border: `2px solid ${selectedTarget === t.column ? "#2563eb" : "#e5e7eb"}`,
                   borderRadius: "8px",
                   background: selectedTarget === t.column ? "#eff6ff" : "white",
-                  cursor: "pointer",
-                  textAlign: "left"
+                  cursor: "pointer"
                 }}
               >
                 <div style={{ fontWeight: "500", fontSize: "14px", color: selectedTarget === t.column ? "#2563eb" : "inherit" }}>
                   {t.column}
                 </div>
                 <div style={{ fontSize: "11px", color: "#6b7280" }}>
-                  {Math.round(t.confidence * 100)}% confidence · {t.reason}
+                  {Math.round(t.confidence * 100)}% confidence
                 </div>
               </button>
             ))}
-            {/* Show all other columns as options too */}
             {detection.column_names
               .filter(c => !detection.suggested_targets.find(t => t.column === c))
-              .filter(c => !detection.id_columns.includes(c))
+              .filter(c => !detection.id_columns?.includes(c))
               .map((c, i) => (
                 <button
                   key={`other-${i}`}
@@ -291,7 +367,7 @@ export default function DatasetAnalysis() {
                     border: `2px solid ${selectedTarget === c ? "#2563eb" : "#e5e7eb"}`,
                     borderRadius: "8px",
                     background: selectedTarget === c ? "#eff6ff" : "white",
-                    cursor: "pointer",
+                    cursor: "pointer"
                   }}
                 >
                   <div style={{ fontSize: "14px", color: selectedTarget === c ? "#2563eb" : "#6b7280" }}>
@@ -303,133 +379,113 @@ export default function DatasetAnalysis() {
         </div>
 
         {/* Sensitive Features */}
-        <div style={{
-          background: "white",
-          border: "1px solid #e5e7eb",
-          borderRadius: "12px",
-          padding: "20px",
-          marginBottom: "20px"
-        }}>
+        <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "20px", marginBottom: "20px" }}>
           <h3 style={{ margin: "0 0 4px" }}>⚠️ Sensitive Features</h3>
           <p style={{ color: "#6b7280", fontSize: "14px", margin: "0 0 16px" }}>
-            AI-detected protected attributes. Select all that apply.
+            AI-detected protected attributes — click to select/deselect
           </p>
 
-          {detection.sensitive_features.length > 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {detection.sensitive_features.map((sf, i) => {
-                const colors = RISK_COLORS[sf.risk] || RISK_COLORS.Low;
-                const isSelected = selectedSensitive.includes(sf.column);
-                return (
-                  <div
-                    key={i}
-                    onClick={() => toggleSensitive(sf.column)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "12px 16px",
-                      border: `2px solid ${isSelected ? "#2563eb" : "#e5e7eb"}`,
-                      borderRadius: "10px",
-                      cursor: "pointer",
-                      background: isSelected ? "#eff6ff" : "white",
-                      transition: "all 0.15s"
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <div style={{
-                        width: "20px", height: "20px",
-                        borderRadius: "4px",
-                        background: isSelected ? "#2563eb" : "white",
-                        border: `2px solid ${isSelected ? "#2563eb" : "#d1d5db"}`,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: "12px", color: "white"
-                      }}>
-                        {isSelected ? "✓" : ""}
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
+            {detection.sensitive_features.map((sf, i) => {
+              const colors = RISK_COLORS[sf.risk] || RISK_COLORS.Low;
+              const isSelected = selectedSensitive.includes(sf.column);
+              return (
+                <div
+                  key={i}
+                  onClick={() => toggleSensitive(sf.column)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "12px 16px",
+                    border: `2px solid ${isSelected ? "#2563eb" : "#e5e7eb"}`,
+                    borderRadius: "10px",
+                    cursor: "pointer",
+                    background: isSelected ? "#eff6ff" : "white"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{
+                      width: "20px", height: "20px",
+                      borderRadius: "4px",
+                      background: isSelected ? "#2563eb" : "white",
+                      border: `2px solid ${isSelected ? "#2563eb" : "#d1d5db"}`,
+                      display: "flex", alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "12px", color: "white",
+                      flexShrink: 0
+                    }}>
+                      {isSelected ? "✓" : ""}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: "500", fontSize: "14px" }}>
+                        {sf.column}
+                        <span style={{
+                          marginLeft: "8px",
+                          fontSize: "11px",
+                          background: "#dbeafe",
+                          color: "#1d4ed8",
+                          padding: "2px 6px",
+                          borderRadius: "4px"
+                        }}>
+                          {sf.category}
+                        </span>
                       </div>
-                      <div>
-                        <div style={{ fontWeight: "500", fontSize: "14px" }}>
-                          {sf.column}
-                          <span style={{
-                            marginLeft: "8px",
-                            fontSize: "11px",
-                            background: "#dbeafe",
-                            color: "#1d4ed8",
-                            padding: "2px 6px",
-                            borderRadius: "4px"
-                          }}>
-                            {sf.category}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>
-                          {sf.reason} · {Math.round(sf.confidence * 100)}% confidence
-                        </div>
-                        <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "1px" }}>
-                          ⚖️ {sf.law}
-                        </div>
+                      <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>
+                        {sf.reason} · {Math.round(sf.confidence * 100)}% confidence
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "1px" }}>
+                        ⚖️ {sf.law}
                       </div>
                     </div>
-                    <span style={{
-                      padding: "3px 10px",
-                      background: colors.bg,
-                      color: colors.text,
-                      border: `1px solid ${colors.border}`,
-                      borderRadius: "6px",
-                      fontSize: "12px",
-                      fontWeight: "500"
-                    }}>
-                      {sf.risk} Risk
-                    </span>
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p style={{ color: "#6b7280", fontSize: "14px" }}>
-              No sensitive features auto-detected.
-              Manually select from all columns below.
-            </p>
-          )}
+                  <span style={{
+                    padding: "3px 10px",
+                    background: colors.bg,
+                    color: colors.text,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    fontWeight: "500",
+                    whiteSpace: "nowrap"
+                  }}>
+                    {sf.risk} Risk
+                  </span>
+                </div>
+              );
+            })}
+          </div>
 
-          {/* Manual add from remaining columns */}
-          <div style={{ marginTop: "16px" }}>
-            <p style={{ color: "#6b7280", fontSize: "13px", marginBottom: "8px" }}>
-              Add more columns manually:
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-              {detection.column_names
-                .filter(c => !detection.sensitive_features.find(sf => sf.column === c))
-                .filter(c => c !== selectedTarget)
-                .filter(c => !detection.id_columns.includes(c))
-                .map((c, i) => (
-                  <button
-                    key={i}
-                    onClick={() => toggleSensitive(c)}
-                    style={{
-                      padding: "4px 10px",
-                      border: `1px solid ${selectedSensitive.includes(c) ? "#2563eb" : "#e5e7eb"}`,
-                      borderRadius: "6px",
-                      background: selectedSensitive.includes(c) ? "#eff6ff" : "white",
-                      cursor: "pointer",
-                      fontSize: "13px",
-                      color: selectedSensitive.includes(c) ? "#2563eb" : "#374151"
-                    }}
-                  >
-                    {selectedSensitive.includes(c) ? "✓ " : ""}{c}
-                  </button>
-                ))}
-            </div>
+          <p style={{ color: "#6b7280", fontSize: "13px", marginBottom: "8px" }}>
+            Add more manually:
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            {detection.column_names
+              .filter(c => !detection.sensitive_features.find(sf => sf.column === c))
+              .filter(c => c !== selectedTarget)
+              .filter(c => !detection.id_columns?.includes(c))
+              .map((c, i) => (
+                <button
+                  key={i}
+                  onClick={() => toggleSensitive(c)}
+                  style={{
+                    padding: "4px 10px",
+                    border: `1px solid ${selectedSensitive.includes(c) ? "#2563eb" : "#e5e7eb"}`,
+                    borderRadius: "6px",
+                    background: selectedSensitive.includes(c) ? "#eff6ff" : "white",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    color: selectedSensitive.includes(c) ? "#2563eb" : "#374151"
+                  }}
+                >
+                  {selectedSensitive.includes(c) ? "✓ " : ""}{c}
+                </button>
+              ))}
           </div>
         </div>
 
-        {/* Preview */}
-        <div style={{
-          background: "white",
-          border: "1px solid #e5e7eb",
-          borderRadius: "12px",
-          padding: "20px",
-          marginBottom: "20px"
-        }}>
+        {/* Data Preview */}
+        <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "20px", marginBottom: "20px" }}>
           <h3 style={{ margin: "0 0 12px" }}>👁️ Data Preview</h3>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
@@ -450,8 +506,8 @@ export default function DatasetAnalysis() {
                       whiteSpace: "nowrap"
                     }}>
                       {col}
-                      {selectedSensitive.includes(col) && <span style={{ color: "#f59e0b", marginLeft: "4px" }}>⚠</span>}
-                      {col === selectedTarget && <span style={{ color: "#2563eb", marginLeft: "4px" }}>🎯</span>}
+                      {selectedSensitive.includes(col) && " ⚠"}
+                      {col === selectedTarget && " 🎯"}
                     </th>
                   ))}
                 </tr>
@@ -474,29 +530,25 @@ export default function DatasetAnalysis() {
             </table>
           </div>
           <p style={{ color: "#9ca3af", fontSize: "12px", marginTop: "8px" }}>
-            🎯 = Target column &nbsp; ⚠ = Sensitive feature
+            🎯 = Target column · ⚠ = Sensitive feature
           </p>
         </div>
 
-        {/* Summary + Analyze Button */}
+        {/* Analyze Button */}
         <div style={{
           background: "#f8fafc",
           border: "1px solid #e5e7eb",
           borderRadius: "12px",
           padding: "16px 20px",
-          marginBottom: "16px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between"
         }}>
           <div>
-            <p style={{ margin: "0 0 4px", fontWeight: "500" }}>
-              Ready to analyze
-            </p>
+            <p style={{ margin: "0 0 4px", fontWeight: "500" }}>Ready to analyze</p>
             <p style={{ margin: 0, color: "#6b7280", fontSize: "14px" }}>
-              Target: <strong>{selectedTarget || "Not selected"}</strong>
-              &nbsp;·&nbsp;
-              Sensitive: <strong>{selectedSensitive.join(", ") || "None selected"}</strong>
+              Target: <strong>{selectedTarget || "Not selected"}</strong> ·
+              Sensitive: <strong>{selectedSensitive.join(", ") || "None"}</strong>
             </p>
           </div>
           <button
@@ -518,7 +570,7 @@ export default function DatasetAnalysis() {
             {loading ? "Analyzing..." : "🔍 Run Bias Analysis"}
           </button>
         </div>
-        {status && <p style={{ color: "#6b7280", textAlign: "center" }}>{status}</p>}
+        {status && <p style={{ color: "#6b7280", textAlign: "center", marginTop: "12px" }}>{status}</p>}
       </div>
     );
   }
@@ -527,14 +579,17 @@ export default function DatasetAnalysis() {
   if (step === "results" && results) {
     const score = results.overall_score?.score;
     const scoreColor = results.overall_score?.color || "#6b7280";
-
-    const tabs = ["overview", "distribution", "issues", "mitigation"];
+    const tabs = ["overview", "intersectional", "distribution", "issues", "mitigation"];
 
     return (
       <div style={{ padding: "32px", maxWidth: "1000px", margin: "0 auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px" }}>
           <button
-            onClick={() => { setStep("configure"); setResults(null); setMitResult(null); }}
+            onClick={() => {
+              setStep(gcsUri ? "configure" : "upload");
+              setResults(null);
+              setMitResult(null);
+            }}
             style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: "14px" }}
           >
             ← Back
@@ -542,10 +597,32 @@ export default function DatasetAnalysis() {
           <div>
             <h1 style={{ margin: 0 }}>Bias Analysis Report</h1>
             <p style={{ margin: 0, color: "#6b7280", fontSize: "14px" }}>
-              {results.dataset_info?.total_rows} rows · Target: {selectedTarget} · Sensitive: {selectedSensitive.join(", ")}
+              {results.dataset_info?.total_rows} rows ·
+              Target: {selectedTarget} ·
+              Sensitive: {selectedSensitive.join(", ")}
             </p>
           </div>
         </div>
+
+        {/* Demo Info Banner */}
+        {results.demo_info && (
+          <div style={{
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+            borderRadius: "10px",
+            padding: "14px 18px",
+            marginBottom: "20px"
+          }}>
+            <strong>{results.demo_info.name}</strong>
+            <p style={{ margin: "4px 0 0", fontSize: "14px", color: "#92400e" }}>
+              ⚠️ Known bias: {results.demo_info.known_bias}
+            </p>
+            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#6b7280" }}>
+              ⚖️ Legal context: {results.demo_info.legal_context} ·
+              Source: {results.demo_info.source}
+            </p>
+          </div>
+        )}
 
         {/* Score Hero */}
         <div style={{
@@ -560,7 +637,7 @@ export default function DatasetAnalysis() {
         }}>
           <div>
             <p style={{ margin: "0 0 4px", color: "#6b7280", fontSize: "13px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              FAIRNESS SCORE
+              OVERALL FAIRNESS SCORE
             </p>
             <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
               <span style={{ fontSize: "56px", fontWeight: "700", color: scoreColor, lineHeight: 1 }}>
@@ -571,36 +648,44 @@ export default function DatasetAnalysis() {
             <p style={{ margin: "8px 0 0", fontWeight: "500", color: scoreColor }}>
               {results.overall_score?.label}
             </p>
+            <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#6b7280" }}>
+              {results.bias_summary?.length || 0} issues detected across
+              {" "}{selectedSensitive.length} sensitive features
+            </p>
           </div>
-          <div style={{ textAlign: "right" }}>
+          <div style={{
+            width: "120px", height: "120px",
+            borderRadius: "50%",
+            background: `conic-gradient(${scoreColor} ${score * 3.6}deg, #f3f4f6 0deg)`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }}>
             <div style={{
-              width: "120px", height: "120px",
+              width: "90px", height: "90px",
               borderRadius: "50%",
-              background: `conic-gradient(${scoreColor} ${score * 3.6}deg, #f3f4f6 0deg)`,
+              background: "white",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              position: "relative"
+              fontSize: "22px",
+              fontWeight: "700",
+              color: scoreColor
             }}>
-              <div style={{
-                width: "90px", height: "90px",
-                borderRadius: "50%",
-                background: "white",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "22px",
-                fontWeight: "700",
-                color: scoreColor
-              }}>
-                {score}
-              </div>
+              {score}
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: "4px", marginBottom: "20px", background: "#f3f4f6", padding: "4px", borderRadius: "10px" }}>
+        <div style={{
+          display: "flex",
+          gap: "4px",
+          marginBottom: "20px",
+          background: "#f3f4f6",
+          padding: "4px",
+          borderRadius: "10px"
+        }}>
           {tabs.map(tab => (
             <button
               key={tab}
@@ -613,7 +698,7 @@ export default function DatasetAnalysis() {
                 cursor: "pointer",
                 background: activeTab === tab ? "white" : "transparent",
                 fontWeight: activeTab === tab ? "500" : "400",
-                fontSize: "14px",
+                fontSize: "13px",
                 color: activeTab === tab ? "#111827" : "#6b7280",
                 boxShadow: activeTab === tab ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
                 textTransform: "capitalize"
@@ -624,7 +709,7 @@ export default function DatasetAnalysis() {
           ))}
         </div>
 
-        {/* Tab: Overview */}
+        {/* ── TAB: OVERVIEW ── */}
         {activeTab === "overview" && (
           <div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "20px" }}>
@@ -653,7 +738,6 @@ export default function DatasetAnalysis() {
               ))}
             </div>
 
-            {/* Correlation Analysis */}
             {Object.entries(results.correlation_analysis || {}).map(([feature, data], i) => (
               <div key={i} style={{
                 background: data.statistically_significant ? "#fef2f2" : "#f0fdf4",
@@ -664,13 +748,14 @@ export default function DatasetAnalysis() {
               }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
-                    <strong>{feature}</strong> ↔ {selectedTarget}
+                    <strong>{feature}</strong>
+                    <span style={{ color: "#6b7280" }}> ↔ {selectedTarget}</span>
                     <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#6b7280" }}>
                       {data.interpretation}
                     </p>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "13px", color: "#6b7280" }}>p-value</div>
+                    <div style={{ fontSize: "12px", color: "#6b7280" }}>p-value</div>
                     <div style={{ fontWeight: "600", color: data.statistically_significant ? "#dc2626" : "#16a34a" }}>
                       {data.p_value}
                     </div>
@@ -681,7 +766,169 @@ export default function DatasetAnalysis() {
           </div>
         )}
 
-        {/* Tab: Distribution */}
+        {/* ── TAB: INTERSECTIONAL ── */}
+        {activeTab === "intersectional" && (
+          <div>
+            <h3>Intersectional Bias Analysis</h3>
+            <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>
+              Examines how multiple sensitive features combine.
+              Identifies which specific group combinations face the worst outcomes.
+            </p>
+
+            {results.intersectional_analysis?.available ? (
+              Object.entries(results.intersectional_analysis?.intersections || {}).map(([pair, data], i) => {
+                if (data.error) return null;
+                return (
+                  <div key={i} style={{
+                    background: "white",
+                    border: `1px solid ${data.is_biased ? "#fecaca" : "#e5e7eb"}`,
+                    borderRadius: "12px",
+                    padding: "20px",
+                    marginBottom: "16px"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                      <h4 style={{ margin: 0 }}>{pair}</h4>
+                      <span style={{
+                        padding: "4px 12px",
+                        background: data.severity === "Critical" ? "#fee2e2"
+                          : data.severity === "High" ? "#fef3c7"
+                          : "#f0fdf4",
+                        color: data.severity === "Critical" ? "#dc2626"
+                          : data.severity === "High" ? "#d97706"
+                          : "#16a34a",
+                        borderRadius: "8px",
+                        fontSize: "13px",
+                        fontWeight: "500"
+                      }}>
+                        {data.severity} Disparity
+                      </span>
+                    </div>
+                    <p style={{ color: "#374151", fontSize: "14px", marginBottom: "16px" }}>
+                      {data.insight}
+                    </p>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "8px" }}>
+                      {data.groups?.map((group, j) => {
+                        const isWorst = group.group === data.worst_group?.group;
+                        const isBest = group.group === data.best_group?.group;
+                        return (
+                          <div key={j} style={{
+                            padding: "12px",
+                            background: isWorst ? "#fee2e2" : isBest ? "#f0fdf4" : "#f9fafb",
+                            borderRadius: "8px",
+                            border: `1px solid ${isWorst ? "#fecaca" : isBest ? "#bbf7d0" : "#e5e7eb"}`
+                          }}>
+                            <div style={{ fontSize: "11px", color: "#6b7280", marginBottom: "2px" }}>
+                              {isWorst ? "⬇️ Worst" : isBest ? "⬆️ Best" : ""}
+                            </div>
+                            <div style={{ fontWeight: "500", fontSize: "12px", marginBottom: "4px" }}>
+                              {group.group}
+                            </div>
+                            <div style={{
+                              fontSize: "24px",
+                              fontWeight: "700",
+                              color: isWorst ? "#dc2626" : isBest ? "#16a34a" : "#374151"
+                            }}>
+                              {(group.approval_rate * 100).toFixed(1)}%
+                            </div>
+                            <div style={{ fontSize: "11px", color: "#9ca3af" }}>
+                              {group.count} samples
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div style={{
+                background: "#f9fafb",
+                border: "1px solid #e5e7eb",
+                borderRadius: "12px",
+                padding: "32px",
+                textAlign: "center",
+                color: "#6b7280"
+              }}>
+                <div style={{ fontSize: "32px", marginBottom: "12px" }}>ℹ️</div>
+                <p style={{ margin: 0 }}>
+                  {results.intersectional_analysis?.reason ||
+                    "Select at least 2 sensitive features for intersectional analysis."}
+                </p>
+              </div>
+            )}
+
+            {/* Counterfactual */}
+            <h3 style={{ marginTop: "32px" }}>Counterfactual Evidence</h3>
+            <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>
+              What happens if we change ONLY the sensitive attribute?
+              A high flip rate is direct evidence of discrimination.
+            </p>
+
+            {Object.entries(results.counterfactual_analysis || {}).map(([feature, data], i) => (
+              <div key={i} style={{
+                background: "white",
+                border: `1px solid ${data.available && data.is_biased ? "#fecaca" : "#e5e7eb"}`,
+                borderRadius: "12px",
+                padding: "20px",
+                marginBottom: "12px"
+              }}>
+                {data.available ? (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                      <h4 style={{ margin: 0 }}>If we change: <strong>{feature}</strong></h4>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: "28px", fontWeight: "700", color: data.is_biased ? "#dc2626" : "#16a34a" }}>
+                          {data.affected_percentage}%
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#6b7280" }}>outcomes change</div>
+                      </div>
+                    </div>
+                    <p style={{ color: "#374151", fontSize: "14px", marginBottom: "16px" }}>
+                      {data.evidence}
+                    </p>
+                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                      <div style={{
+                        flex: 1, padding: "14px",
+                        background: "#f9fafb",
+                        borderRadius: "8px",
+                        textAlign: "center"
+                      }}>
+                        <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>{data.group_a}</div>
+                        <div style={{ fontSize: "28px", fontWeight: "700" }}>
+                          {(data.rate_group_a * 100).toFixed(1)}%
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#9ca3af" }}>approval rate</div>
+                      </div>
+                      <div style={{ color: "#9ca3af", fontSize: "24px" }}>→</div>
+                      <div style={{
+                        flex: 1, padding: "14px",
+                        background: data.is_biased ? "#fee2e2" : "#f0fdf4",
+                        borderRadius: "8px",
+                        textAlign: "center"
+                      }}>
+                        <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>{data.group_b}</div>
+                        <div style={{
+                          fontSize: "28px",
+                          fontWeight: "700",
+                          color: data.is_biased ? "#dc2626" : "#16a34a"
+                        }}>
+                          {(data.rate_group_b * 100).toFixed(1)}%
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#9ca3af" }}>approval rate</div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p style={{ color: "#6b7280", margin: 0 }}>
+                    <strong>{feature}:</strong> {data.reason}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── TAB: DISTRIBUTION ── */}
         {activeTab === "distribution" && (
           <div>
             <h3>Class Distribution</h3>
@@ -695,7 +942,6 @@ export default function DatasetAnalysis() {
               </BarChart>
             </ResponsiveContainer>
 
-            {/* Demographic distributions */}
             {Object.entries(results.demographic_distribution || {}).map(([feature, groups], i) => (
               <div key={i} style={{ marginTop: "24px" }}>
                 <h3>Distribution by {feature}</h3>
@@ -708,17 +954,19 @@ export default function DatasetAnalysis() {
                       padding: "14px"
                     }}>
                       <p style={{ margin: "0 0 4px", fontWeight: "500", fontSize: "14px" }}>{group}</p>
-                      <p style={{ margin: "0 0 4px", color: "#6b7280", fontSize: "13px" }}>
+                      <p style={{ margin: "0 0 8px", color: "#6b7280", fontSize: "13px" }}>
                         {stats.count} samples ({stats.percentage}%)
                       </p>
-                      <div>
-                        {Object.entries(stats.target_distribution || {}).map(([val, pct], k) => (
-                          <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                            <span style={{ color: "#6b7280" }}>{val === "1" ? "Approved" : val === "0" ? "Denied" : val}</span>
-                            <span style={{ fontWeight: "500" }}>{(pct * 100).toFixed(1)}%</span>
-                          </div>
-                        ))}
-                      </div>
+                      {Object.entries(stats.target_distribution || {}).map(([val, pct], k) => (
+                        <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
+                          <span style={{ color: "#6b7280" }}>
+                            {val === "1" ? "✅ Approved" : val === "0" ? "❌ Denied" : val}
+                          </span>
+                          <span style={{ fontWeight: "600" }}>
+                            {(pct * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
@@ -727,14 +975,16 @@ export default function DatasetAnalysis() {
           </div>
         )}
 
-        {/* Tab: Issues */}
+        {/* ── TAB: ISSUES ── */}
         {activeTab === "issues" && (
           <div>
             {results.bias_summary?.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "40px", color: "#22c55e" }}>
+              <div style={{ textAlign: "center", padding: "48px", color: "#22c55e" }}>
                 <div style={{ fontSize: "48px" }}>✅</div>
                 <h3>No significant bias detected</h3>
-                <p style={{ color: "#6b7280" }}>This dataset appears fair across the selected sensitive features.</p>
+                <p style={{ color: "#6b7280" }}>
+                  This dataset appears fair across the selected sensitive features.
+                </p>
               </div>
             ) : (
               results.bias_summary?.map((issue, i) => {
@@ -748,21 +998,18 @@ export default function DatasetAnalysis() {
                     marginBottom: "12px"
                   }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                      <div>
-                        <span style={{ fontWeight: "600", fontSize: "16px" }}>{issue.type}</span>
-                        <span style={{
-                          marginLeft: "10px",
-                          padding: "3px 10px",
-                          background: colors.bg,
-                          color: colors.text,
-                          border: `1px solid ${colors.border}`,
-                          borderRadius: "6px",
-                          fontSize: "12px",
-                          fontWeight: "500"
-                        }}>
-                          {issue.severity}
-                        </span>
-                      </div>
+                      <span style={{ fontWeight: "600", fontSize: "16px" }}>{issue.type}</span>
+                      <span style={{
+                        padding: "3px 10px",
+                        background: colors.bg,
+                        color: colors.text,
+                        border: `1px solid ${colors.border}`,
+                        borderRadius: "6px",
+                        fontSize: "12px",
+                        fontWeight: "500"
+                      }}>
+                        {issue.severity}
+                      </span>
                     </div>
                     <p style={{ margin: "0 0 12px", color: "#374151" }}>{issue.message}</p>
                     <div style={{
@@ -779,12 +1026,12 @@ export default function DatasetAnalysis() {
             )}
 
             {/* Proxy Features */}
-            {Object.entries(results.proxy_features || {}).some(([, proxies]) => proxies.length > 0) && (
+            {Object.entries(results.proxy_features || {}).some(([, p]) => p.length > 0) && (
               <div style={{ marginTop: "24px" }}>
                 <h3>🔗 Proxy Features Detected</h3>
                 <p style={{ color: "#6b7280", fontSize: "14px" }}>
                   These features correlate strongly with sensitive attributes
-                  and may encode bias indirectly.
+                  and may encode bias indirectly — similar to redlining.
                 </p>
                 {Object.entries(results.proxy_features || {}).map(([sensitive, proxies], i) =>
                   proxies.map((proxy, j) => (
@@ -801,24 +1048,19 @@ export default function DatasetAnalysis() {
                       <div>
                         <strong>{proxy.feature}</strong>
                         <span style={{ color: "#6b7280", fontSize: "13px", marginLeft: "8px" }}>
-                          correlates with <strong>{sensitive}</strong>
+                          correlates with <strong>{sensitive}</strong> at {proxy.correlation}
                         </span>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <span style={{ fontSize: "13px", color: "#6b7280" }}>
-                          correlation: {proxy.correlation}
-                        </span>
-                        <span style={{
-                          padding: "3px 10px",
-                          background: proxy.risk === "High" ? "#fee2e2" : "#fef3c7",
-                          color: proxy.risk === "High" ? "#991b1b" : "#92400e",
-                          borderRadius: "6px",
-                          fontSize: "12px",
-                          fontWeight: "500"
-                        }}>
-                          {proxy.risk} Risk
-                        </span>
-                      </div>
+                      <span style={{
+                        padding: "3px 10px",
+                        background: proxy.risk === "High" ? "#fee2e2" : "#fef3c7",
+                        color: proxy.risk === "High" ? "#991b1b" : "#92400e",
+                        borderRadius: "6px",
+                        fontSize: "12px",
+                        fontWeight: "500"
+                      }}>
+                        {proxy.risk} Risk
+                      </span>
                     </div>
                   ))
                 )}
@@ -827,13 +1069,12 @@ export default function DatasetAnalysis() {
           </div>
         )}
 
-        {/* Tab: Mitigation */}
+        {/* ── TAB: MITIGATION ── */}
         {activeTab === "mitigation" && (
           <div>
             <h3>Apply Mitigation Strategy</h3>
             <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "20px" }}>
-              Choose a strategy to reduce detected bias. Results are saved
-              for before/after comparison.
+              Choose a strategy to reduce detected bias.
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "24px" }}>
               {[
@@ -841,15 +1082,15 @@ export default function DatasetAnalysis() {
                   strategy: "resample",
                   icon: "📈",
                   title: "SMOTE Resampling",
-                  desc: "Create synthetic samples to balance class distribution. Best for class imbalance.",
-                  when: "Use when: minority class < 40%"
+                  desc: "Create synthetic samples to balance class distribution.",
+                  when: "Best for: class imbalance"
                 },
                 {
                   strategy: "remove_feature",
                   icon: "✂️",
                   title: "Feature Removal",
-                  desc: "Remove sensitive attributes and their proxy correlates from the dataset.",
-                  when: "Use when: proxy features detected"
+                  desc: "Remove sensitive attributes and their proxy correlates.",
+                  when: "Best for: proxy features detected"
                 }
               ].map((s, i) => (
                 <div key={i} style={{
@@ -860,7 +1101,7 @@ export default function DatasetAnalysis() {
                 }}>
                   <div style={{ fontSize: "28px", marginBottom: "12px" }}>{s.icon}</div>
                   <h4 style={{ margin: "0 0 8px" }}>{s.title}</h4>
-                  <p style={{ color: "#6b7280", fontSize: "14px", margin: "0 0 8px" }}>{s.desc}</p>
+                  <p style={{ color: "#6b7280", fontSize: "14px", margin: "0 0 6px" }}>{s.desc}</p>
                   <p style={{ color: "#9ca3af", fontSize: "12px", margin: "0 0 16px" }}>{s.when}</p>
                   <button
                     onClick={() => handleMitigate(s.strategy)}
@@ -890,9 +1131,9 @@ export default function DatasetAnalysis() {
                 padding: "20px"
               }}>
                 <h3 style={{ margin: "0 0 12px", color: "#15803d" }}>
-                  ✅ Mitigation Applied: {mitResult.strategy}
+                  ✅ {mitResult.strategy}
                 </h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "12px" }}>
                   <div>
                     <p style={{ margin: "0 0 4px", fontWeight: "500", fontSize: "13px", color: "#6b7280" }}>BEFORE</p>
                     {Object.entries(mitResult.before_distribution || {}).map(([k, v], i) => (
@@ -911,10 +1152,10 @@ export default function DatasetAnalysis() {
                   </div>
                 </div>
                 {mitResult.columns_before && (
-                  <p style={{ margin: "12px 0 0", fontSize: "14px" }}>
+                  <p style={{ margin: "0 0 4px", fontSize: "14px" }}>
                     Columns: {mitResult.columns_before} → {mitResult.columns_after}
                     {mitResult.removed_sensitive_features?.length > 0 &&
-                      ` (removed: ${mitResult.removed_sensitive_features.join(", ")})`
+                      ` (removed: ${[...mitResult.removed_sensitive_features, ...(mitResult.removed_proxy_features || [])].join(", ")})`
                     }
                   </p>
                 )}

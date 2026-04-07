@@ -42,3 +42,9 @@ export const getReport = (id) => apiClient.get(`/api/reports/${id}`);
 
 export const detectColumns = (payload) =>
   apiClient.post("/api/dataset/detect", payload);
+
+export const listDemoDatasets = () =>
+  apiClient.get("/api/dataset/demo/list");
+
+export const analyzeDemoDataset = (datasetKey) =>
+  apiClient.post("/api/dataset/demo/analyze", { datasetKey });
