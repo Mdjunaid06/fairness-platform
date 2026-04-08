@@ -48,3 +48,8 @@ export const listDemoDatasets = () =>
 
 export const analyzeDemoDataset = (datasetKey) =>
   apiClient.post("/api/dataset/demo/analyze", { datasetKey });
+export const runLegalCheck = (payload) =>
+  apiClient.post("/api/dataset/legal", payload);
+
+export const generateNarrative = (payload) =>
+  apiClient.post("/api/dataset/narrative", payload);

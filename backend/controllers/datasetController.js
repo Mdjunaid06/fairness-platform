@@ -141,3 +141,31 @@ exports.analyzeDemoDataset = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+exports.runLegalCheck = async (req, res) => {
+  try {
+    const { analysisResults, sensitiveFeatures, contextKeywords } = req.body;
+    const result = await callAIEngine("/analyze/legal", {
+      analysis_results: analysisResults,
+      sensitive_features: sensitiveFeatures,
+      context_keywords: contextKeywords || []
+    });
+    res.json({ legal: result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.generateNarrative = async (req, res) => {
+  try {
+    const { analysisResults, sensitiveFeatures, targetColumn, legalResults } = req.body;
+    const result = await callAIEngine("/analyze/narrative", {
+      analysis_results: analysisResults,
+      sensitive_features: sensitiveFeatures,
+      target_column: targetColumn,
+      legal_results: legalResults || {}
+    });
+    res.json({ narrative: result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

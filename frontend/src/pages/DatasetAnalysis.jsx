@@ -9,7 +9,9 @@ import {
   analyzeDataset,
   mitigateDataset,
   detectColumns,
-  analyzeDemoDataset
+  analyzeDemoDataset,
+  runLegalCheck,
+  generateNarrative
 } from "../services/api";
 
 const RISK_COLORS = {
@@ -18,6 +20,7 @@ const RISK_COLORS = {
   Low: { bg: "#f0fdf4", text: "#166534", border: "#bbf7d0" },
   Critical: { bg: "#fdf2f8", text: "#701a75", border: "#f0abfc" },
   Moderate: { bg: "#fff7ed", text: "#9a3412", border: "#fed7aa" },
+  Severe: { bg: "#fee2e2", text: "#991b1b", border: "#fecaca" },
 };
 
 const DEMO_DATASETS = [
@@ -77,6 +80,34 @@ export default function DatasetAnalysis() {
     maxFiles: 1,
   });
 
+  // ── Run legal + narrative after analysis ────────────────────
+  const enrichWithLegalAndNarrative = async (
+    analysis,
+    sensitive,
+    target
+  ) => {
+    try {
+      const [legalRes, narrativeRes] = await Promise.all([
+        runLegalCheck({
+          analysisResults: analysis,
+          sensitiveFeatures: sensitive,
+          contextKeywords: [target]
+        }),
+        generateNarrative({
+          analysisResults: analysis,
+          sensitiveFeatures: sensitive,
+          targetColumn: target,
+          legalResults: {}
+        })
+      ]);
+      analysis._legal = legalRes.data.legal;
+      analysis._narrative = narrativeRes.data.narrative;
+    } catch (err) {
+      console.warn("Legal/narrative enrichment failed:", err.message);
+    }
+    return analysis;
+  };
+
   const handleUploadAndDetect = async () => {
     if (!file) return alert("Please upload a CSV file");
     setLoading(true);
@@ -113,9 +144,18 @@ export default function DatasetAnalysis() {
     try {
       const res = await analyzeDemoDataset(datasetKey);
       const analysis = res.data.analysis;
-      setResults(analysis);
-      setSelectedTarget(analysis.demo_info?.target || "");
-      setSelectedSensitive(analysis.demo_info?.sensitive_features || []);
+      const sensitive = analysis.demo_info?.sensitive_features || [];
+      const target = analysis.demo_info?.target || "";
+
+      setSelectedTarget(target);
+      setSelectedSensitive(sensitive);
+
+      setStatus("Running legal compliance check...");
+      const enriched = await enrichWithLegalAndNarrative(
+        analysis, sensitive, target
+      );
+
+      setResults(enriched);
       setStep("results");
       setActiveTab("overview");
       setStatus("");
@@ -140,7 +180,14 @@ export default function DatasetAnalysis() {
         targetColumn: selectedTarget,
         sensitiveFeatures: selectedSensitive,
       });
-      setResults(res.data.analysis);
+      const analysis = res.data.analysis;
+
+      setStatus("Running legal compliance check...");
+      const enriched = await enrichWithLegalAndNarrative(
+        analysis, selectedSensitive, selectedTarget
+      );
+
+      setResults(enriched);
       setStep("results");
       setActiveTab("overview");
       setStatus("");
@@ -195,7 +242,6 @@ export default function DatasetAnalysis() {
           proxy variables, and bias sources — no manual configuration needed.
         </p>
 
-        {/* Upload Zone */}
         <div
           {...getRootProps()}
           style={{
@@ -234,7 +280,6 @@ export default function DatasetAnalysis() {
           )}
         </div>
 
-        {/* Demo Datasets */}
         <div style={{ marginBottom: "24px" }}>
           <p style={{ color: "#6b7280", fontSize: "13px", marginBottom: "12px", fontWeight: "500" }}>
             ⚡ Or try a famous real-world bias dataset instantly:
@@ -570,7 +615,11 @@ export default function DatasetAnalysis() {
             {loading ? "Analyzing..." : "🔍 Run Bias Analysis"}
           </button>
         </div>
-        {status && <p style={{ color: "#6b7280", textAlign: "center", marginTop: "12px" }}>{status}</p>}
+        {status && (
+          <p style={{ color: "#6b7280", textAlign: "center", marginTop: "12px" }}>
+            {status}
+          </p>
+        )}
       </div>
     );
   }
@@ -579,7 +628,10 @@ export default function DatasetAnalysis() {
   if (step === "results" && results) {
     const score = results.overall_score?.score;
     const scoreColor = results.overall_score?.color || "#6b7280";
-    const tabs = ["overview", "intersectional", "distribution", "issues", "mitigation"];
+    const tabs = [
+      "overview", "intersectional", "distribution",
+      "issues", "legal", "report", "mitigation"
+    ];
 
     return (
       <div style={{ padding: "32px", maxWidth: "1000px", margin: "0 auto" }}>
@@ -618,8 +670,7 @@ export default function DatasetAnalysis() {
               ⚠️ Known bias: {results.demo_info.known_bias}
             </p>
             <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#6b7280" }}>
-              ⚖️ Legal context: {results.demo_info.legal_context} ·
-              Source: {results.demo_info.source}
+              ⚖️ {results.demo_info.legal_context} · Source: {results.demo_info.source}
             </p>
           </div>
         )}
@@ -649,8 +700,8 @@ export default function DatasetAnalysis() {
               {results.overall_score?.label}
             </p>
             <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#6b7280" }}>
-              {results.bias_summary?.length || 0} issues detected across
-              {" "}{selectedSensitive.length} sensitive features
+              {results.bias_summary?.length || 0} issues detected ·
+              {selectedSensitive.length} sensitive features analyzed
             </p>
           </div>
           <div style={{
@@ -680,28 +731,30 @@ export default function DatasetAnalysis() {
         {/* Tabs */}
         <div style={{
           display: "flex",
-          gap: "4px",
+          gap: "3px",
           marginBottom: "20px",
           background: "#f3f4f6",
           padding: "4px",
-          borderRadius: "10px"
+          borderRadius: "10px",
+          flexWrap: "wrap"
         }}>
           {tabs.map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               style={{
-                flex: 1,
-                padding: "8px",
+                flex: "1 1 auto",
+                padding: "7px 8px",
                 border: "none",
                 borderRadius: "8px",
                 cursor: "pointer",
                 background: activeTab === tab ? "white" : "transparent",
                 fontWeight: activeTab === tab ? "500" : "400",
-                fontSize: "13px",
+                fontSize: "12px",
                 color: activeTab === tab ? "#111827" : "#6b7280",
                 boxShadow: activeTab === tab ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                textTransform: "capitalize"
+                textTransform: "capitalize",
+                whiteSpace: "nowrap"
               }}
             >
               {tab}
@@ -776,7 +829,9 @@ export default function DatasetAnalysis() {
             </p>
 
             {results.intersectional_analysis?.available ? (
-              Object.entries(results.intersectional_analysis?.intersections || {}).map(([pair, data], i) => {
+              Object.entries(
+                results.intersectional_analysis?.intersections || {}
+              ).map(([pair, data], i) => {
                 if (data.error) return null;
                 return (
                   <div key={i} style={{
@@ -875,7 +930,9 @@ export default function DatasetAnalysis() {
                 {data.available ? (
                   <>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                      <h4 style={{ margin: 0 }}>If we change: <strong>{feature}</strong></h4>
+                      <h4 style={{ margin: 0 }}>
+                        If we change: <strong>{feature}</strong>
+                      </h4>
                       <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: "28px", fontWeight: "700", color: data.is_biased ? "#dc2626" : "#16a34a" }}>
                           {data.affected_percentage}%
@@ -887,12 +944,7 @@ export default function DatasetAnalysis() {
                       {data.evidence}
                     </p>
                     <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                      <div style={{
-                        flex: 1, padding: "14px",
-                        background: "#f9fafb",
-                        borderRadius: "8px",
-                        textAlign: "center"
-                      }}>
+                      <div style={{ flex: 1, padding: "14px", background: "#f9fafb", borderRadius: "8px", textAlign: "center" }}>
                         <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>{data.group_a}</div>
                         <div style={{ fontSize: "28px", fontWeight: "700" }}>
                           {(data.rate_group_a * 100).toFixed(1)}%
@@ -908,8 +960,7 @@ export default function DatasetAnalysis() {
                       }}>
                         <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "4px" }}>{data.group_b}</div>
                         <div style={{
-                          fontSize: "28px",
-                          fontWeight: "700",
+                          fontSize: "28px", fontWeight: "700",
                           color: data.is_biased ? "#dc2626" : "#16a34a"
                         }}>
                           {(data.rate_group_b * 100).toFixed(1)}%
@@ -960,7 +1011,7 @@ export default function DatasetAnalysis() {
                       {Object.entries(stats.target_distribution || {}).map(([val, pct], k) => (
                         <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "4px" }}>
                           <span style={{ color: "#6b7280" }}>
-                            {val === "1" ? "✅ Approved" : val === "0" ? "❌ Denied" : val}
+                            {val === "1" ? "✅ Yes" : val === "0" ? "❌ No" : val}
                           </span>
                           <span style={{ fontWeight: "600" }}>
                             {(pct * 100).toFixed(1)}%
@@ -983,7 +1034,7 @@ export default function DatasetAnalysis() {
                 <div style={{ fontSize: "48px" }}>✅</div>
                 <h3>No significant bias detected</h3>
                 <p style={{ color: "#6b7280" }}>
-                  This dataset appears fair across the selected sensitive features.
+                  This dataset appears fair across selected sensitive features.
                 </p>
               </div>
             ) : (
@@ -1012,12 +1063,7 @@ export default function DatasetAnalysis() {
                       </span>
                     </div>
                     <p style={{ margin: "0 0 12px", color: "#374151" }}>{issue.message}</p>
-                    <div style={{
-                      background: "#f0fdf4",
-                      border: "1px solid #bbf7d0",
-                      borderRadius: "8px",
-                      padding: "10px 14px"
-                    }}>
+                    <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "10px 14px" }}>
                       <span style={{ color: "#059669", fontSize: "14px" }}>💡 {issue.action}</span>
                     </div>
                   </div>
@@ -1025,13 +1071,12 @@ export default function DatasetAnalysis() {
               })
             )}
 
-            {/* Proxy Features */}
             {Object.entries(results.proxy_features || {}).some(([, p]) => p.length > 0) && (
               <div style={{ marginTop: "24px" }}>
                 <h3>🔗 Proxy Features Detected</h3>
                 <p style={{ color: "#6b7280", fontSize: "14px" }}>
-                  These features correlate strongly with sensitive attributes
-                  and may encode bias indirectly — similar to redlining.
+                  These features correlate strongly with sensitive attributes —
+                  similar to redlining in housing.
                 </p>
                 {Object.entries(results.proxy_features || {}).map(([sensitive, proxies], i) =>
                   proxies.map((proxy, j) => (
@@ -1065,6 +1110,154 @@ export default function DatasetAnalysis() {
                   ))
                 )}
               </div>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB: LEGAL ── */}
+        {activeTab === "legal" && (
+          <div>
+            {results._legal ? (
+              <>
+                <div style={{
+                  padding: "20px 24px",
+                  background: results._legal.risk_level === "Critical" ? "#fef2f2"
+                    : results._legal.risk_level === "Medium" ? "#fffbeb"
+                    : "#f0fdf4",
+                  border: `1px solid ${results._legal.risk_color}44`,
+                  borderRadius: "12px",
+                  marginBottom: "24px"
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <h3 style={{ margin: 0 }}>Legal Risk Assessment</h3>
+                    <span style={{
+                      padding: "6px 14px",
+                      background: results._legal.risk_color + "22",
+                      color: results._legal.risk_color,
+                      borderRadius: "8px",
+                      fontWeight: "600",
+                      fontSize: "14px"
+                    }}>
+                      {results._legal.risk_level} Risk
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: "14px", color: "#374151" }}>
+                    {results._legal.summary}
+                  </p>
+                </div>
+
+                {[
+                  ...( results._legal.violations || []),
+                  ...( results._legal.warnings || []),
+                  ...( results._legal.compliant || [])
+                ].map((law, i) => (
+                  <div key={i} style={{
+                    background: "white",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "12px",
+                    padding: "16px 20px",
+                    marginBottom: "12px"
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                      <div>
+                        <strong style={{ fontSize: "15px" }}>{law.name}</strong>
+                        <span style={{ marginLeft: "8px", fontSize: "12px", color: "#6b7280" }}>
+                          {law.jurisdiction}
+                        </span>
+                      </div>
+                      <span style={{
+                        padding: "3px 10px",
+                        background: law.status === "VIOLATION" ? "#fee2e2"
+                          : law.status === "WARNING" ? "#fef3c7"
+                          : "#f0fdf4",
+                        color: law.status === "VIOLATION" ? "#dc2626"
+                          : law.status === "WARNING" ? "#d97706"
+                          : "#16a34a",
+                        borderRadius: "6px",
+                        fontSize: "12px",
+                        fontWeight: "600"
+                      }}>
+                        {law.status}
+                      </span>
+                    </div>
+                    <p style={{ margin: "0 0 8px", fontSize: "13px", color: "#6b7280" }}>
+                      {law.description}
+                    </p>
+                    {law.violations_found?.length > 0 && (
+                      <div style={{ marginBottom: "8px" }}>
+                        {law.violations_found.map((v, j) => (
+                          <p key={j} style={{ margin: "2px 0", fontSize: "13px", color: "#dc2626" }}>
+                            • {v}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    <div style={{ background: "#f9fafb", borderRadius: "6px", padding: "8px 12px" }}>
+                      <p style={{ margin: 0, fontSize: "13px", color: "#374151" }}>
+                        💡 {law.recommendation}
+                      </p>
+                      <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#6b7280" }}>
+                        Penalty: {law.penalty}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <p style={{ color: "#6b7280" }}>Legal check not available.</p>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB: REPORT ── */}
+        {activeTab === "report" && (
+          <div>
+            {results._narrative ? (
+              <>
+                <div style={{
+                  background: "#1e293b",
+                  color: "white",
+                  borderRadius: "12px",
+                  padding: "24px",
+                  marginBottom: "24px"
+                }}>
+                  <p style={{ margin: "0 0 4px", fontSize: "12px", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    AI BIAS AUDIT REPORT · FAIRLENS PLATFORM
+                  </p>
+                  <p style={{ margin: "0 0 16px", fontSize: "22px", fontWeight: "700" }}>
+                    {results.demo_info?.name || "Dataset Analysis"}
+                  </p>
+                  <p style={{
+                    margin: 0,
+                    fontSize: "16px",
+                    fontWeight: "500",
+                    color: results._narrative.fairness_score >= 80 ? "#4ade80"
+                      : results._narrative.fairness_score >= 60 ? "#fbbf24"
+                      : "#f87171"
+                  }}>
+                    {results._narrative.one_line_verdict}
+                  </p>
+                </div>
+
+                {results._narrative.sections?.map((section, i) => (
+                  <div key={i} style={{
+                    background: "white",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "12px",
+                    padding: "20px",
+                    marginBottom: "16px"
+                  }}>
+                    <h3 style={{ margin: "0 0 12px", fontSize: "16px", color: "#111827" }}>
+                      {section.title}
+                    </h3>
+                    <div style={{ fontSize: "14px", color: "#374151", lineHeight: "1.8", whiteSpace: "pre-line" }}>
+                      {section.content}
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <p style={{ color: "#6b7280" }}>Narrative report not available.</p>
             )}
           </div>
         )}
@@ -1155,7 +1348,10 @@ export default function DatasetAnalysis() {
                   <p style={{ margin: "0 0 4px", fontSize: "14px" }}>
                     Columns: {mitResult.columns_before} → {mitResult.columns_after}
                     {mitResult.removed_sensitive_features?.length > 0 &&
-                      ` (removed: ${[...mitResult.removed_sensitive_features, ...(mitResult.removed_proxy_features || [])].join(", ")})`
+                      ` (removed: ${[
+                        ...mitResult.removed_sensitive_features,
+                        ...(mitResult.removed_proxy_features || [])
+                      ].join(", ")})`
                     }
                   </p>
                 )}

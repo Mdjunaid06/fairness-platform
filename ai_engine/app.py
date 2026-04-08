@@ -255,6 +255,53 @@ async def analyze_demo_dataset(request: DemoDatasetRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+# ── LEGAL CHECK ───────────────────────────────────────────────
+class LegalCheckRequest(BaseModel):
+    model_config = {"protected_namespaces": ()}
+    analysis_results: dict
+    sensitive_features: List[str]
+    context_keywords: List[str] = []
+
+
+@app.post("/analyze/legal")
+async def legal_check(request: LegalCheckRequest):
+    try:
+        from bias_detection.legal_checker import LegalChecker
+        checker = LegalChecker()
+        result = checker.check(
+            analysis_results=request.analysis_results,
+            sensitive_features=request.sensitive_features,
+            context_keywords=request.context_keywords
+        )
+        return JSONResponse(content=json_safe(result))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── NARRATIVE REPORT ──────────────────────────────────────────
+class NarrativeRequest(BaseModel):
+    model_config = {"protected_namespaces": ()}
+    analysis_results: dict
+    sensitive_features: List[str]
+    target_column: str
+    legal_results: dict = {}
+
+
+@app.post("/analyze/narrative")
+async def generate_narrative(request: NarrativeRequest):
+    try:
+        from explainability.narrative_generator import NarrativeGenerator
+        generator = NarrativeGenerator()
+        result = generator.generate(
+            analysis_result=request.analysis_results,
+            sensitive_features=request.sensitive_features,
+            target_column=request.target_column,
+            legal_result=request.legal_results or None
+        )
+        return JSONResponse(content=json_safe(result))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
