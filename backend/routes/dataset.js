@@ -9,7 +9,8 @@ const {
   listDemoDatasets,
   analyzeDemoDataset,
   runLegalCheck,
-  generateNarrative
+  generateNarrative,
+  downloadFile
 } = require("../controllers/datasetController");
 
 const upload = multer({
@@ -22,6 +23,7 @@ router.post("/analyze", analyzeDataset);
 router.post("/mitigate", mitigateDataset);
 // router.post("/detect", analyzeDataset);
 router.post("/detect", detectColumns);
+router.get("/download/:fileId", downloadFile);
 router.get("/demo/list", listDemoDatasets);
 router.post("/demo/analyze", analyzeDemoDataset);
 router.post("/legal", runLegalCheck);

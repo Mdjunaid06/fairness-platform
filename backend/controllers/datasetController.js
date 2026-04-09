@@ -40,6 +40,32 @@ exports.uploadDataset = async (req, res) => {
   }
 };
 
+exports.downloadFile = async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const doc = await db
+      .collection("file_storage")
+      .doc(fileId)
+      .get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    const data = doc.data();
+    const csvBuffer = Buffer.from(data.content, "base64");
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${data.fileName || "mitigated_dataset.csv"} "`
+    );
+    res.setHeader("Content-Type", "text/csv");
+    res.send(csvBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.analyzeDataset = async (req, res) => {
   try {
     const { gcsUri, targetColumn, sensitiveFeatures, uploadId, fileId } = req.body;

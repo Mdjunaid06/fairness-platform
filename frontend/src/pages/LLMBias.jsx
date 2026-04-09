@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useAppContext } from "../services/AppContext";
 import { testLLMBias } from "../services/api";
 
 const PROVIDERS = [
@@ -59,17 +60,27 @@ const SEVERITY_COLORS = {
 };
 
 export default function LLMBias() {
-  const [selectedProvider, setSelectedProvider] = useState("openai");
-  const [selectedModel, setSelectedModel] = useState("gpt-3.5-turbo");
-  const [selectedSuite, setSelectedSuite] = useState("hiring");
+  const {
+    llmResults: results,
+    setLlmResults: setResults,
+    llmConfig,
+    setLlmConfig,
+  } = useAppContext();
+
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState(null);
   const [expandedTest, setExpandedTest] = useState(null);
-  const [step, setStep] = useState("configure");
+
+  const selectedProvider = llmConfig.provider;
+  const selectedModel = llmConfig.model;
+  const selectedSuite = llmConfig.suite;
+  const step = results ? "results" : "configure";
+
+  const setSelectedProvider = (v) => setLlmConfig(p => ({ ...p, provider: v }));
+  const setSelectedModel = (v) => setLlmConfig(p => ({ ...p, model: v }));
+  const setSelectedSuite = (v) => setLlmConfig(p => ({ ...p, suite: v }));
 
   const handleTest = async () => {
     setLoading(true);
-    setResults(null);
     try {
       const res = await testLLMBias({
         provider: selectedProvider,
@@ -77,7 +88,6 @@ export default function LLMBias() {
         testSuite: selectedSuite,
       });
       setResults(res.data.analysis);
-      setStep("results");
     } catch (err) {
       alert("Test failed: " + (err.response?.data?.error || err.message));
     } finally {

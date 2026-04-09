@@ -53,3 +53,26 @@ export const runLegalCheck = (payload) =>
 
 export const generateNarrative = (payload) =>
   apiClient.post("/api/dataset/narrative", payload);
+
+export const downloadMitigatedFile = async (fileId, fileName) => {
+  const user = auth.currentUser;
+  const token = user ? await user.getIdToken() : "";
+  const BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3001";
+
+  const response = await fetch(
+    `${BASE_URL}/api/dataset/download/${fileId}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  if (!response.ok) throw new Error("Download failed");
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName || "mitigated_dataset.csv";
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+};

@@ -27,7 +27,14 @@ const getFileFromFirestore = async (fileId) => {
     throw new Error("File not found");
   }
   const data = doc.data();
-  return Buffer.from(data.content, "base64");
+  return {
+    buffer: Buffer.from(data.content, "base64"),
+    metadata: {
+      fileName: data.fileName,
+      contentType: data.contentType,
+      sizeBytes: data.sizeBytes,
+    },
+  };
 };
 
 module.exports = { uploadToFirebaseStorage: uploadToFirestore, getFileFromFirestore };

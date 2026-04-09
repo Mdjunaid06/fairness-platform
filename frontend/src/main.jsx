@@ -1,17 +1,13 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import { getRedirectResult } from "firebase/auth";
-import "./index.css";
+import React from "react";
+import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
-import { auth } from "./services/firebase";
+import { AppProvider } from "./services/AppContext.jsx";
+import "./index.css";
 
-// Complete Google sign-in after signInWithRedirect (full-page flow)
-getRedirectResult(auth)
-  .catch(() => {})
-  .finally(() => {
-    createRoot(document.getElementById("root")).render(
-      <StrictMode>
-        <App />
-      </StrictMode>
-    );
-  });
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <AppProvider>
+      <App />
+    </AppProvider>
+  </React.StrictMode>
+);

@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from "react";
+import { useAppContext } from "../services/AppContext";
 import { useDropzone } from "react-dropzone";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -9,7 +10,8 @@ import {
 import {
   uploadDataset, analyzeDataset, mitigateDataset,
   detectColumns, analyzeDemoDataset,
-  runLegalCheck, generateNarrative
+  runLegalCheck, generateNarrative,
+  downloadMitigatedFile
 } from "../services/api";
 
 const RISK_COLORS = {
@@ -36,20 +38,35 @@ const getRiskBadge = (score) => {
 };
 
 export default function DatasetAnalysis() {
+  const {
+    datasetResults: results,
+    setDatasetResults: setResults,
+    datasetConfig,
+    setDatasetConfig,
+    mitResult,
+    setMitResult,
+  } = useAppContext();
+
+  // Keep these as local state (UI only)
   const [file, setFile] = useState(null);
-  const [gcsUri, setGcsUri] = useState("");
-  const [fileId, setFileId] = useState("");
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(null);
   const [status, setStatus] = useState("");
-  const [step, setStep] = useState("upload");
+  const [step, setStep] = useState(results ? "results" : "upload");
   const [detection, setDetection] = useState(null);
-  const [selectedTarget, setSelectedTarget] = useState("");
-  const [selectedSensitive, setSelectedSensitive] = useState([]);
-  const [results, setResults] = useState(null);
-  const [beforeResults, setBeforeResults] = useState(null);
-  const [mitResult, setMitResult] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [beforeResults, setBeforeResults] = useState(null);
+
+  // Derive from context
+  const gcsUri = datasetConfig.gcsUri;
+  const fileId = datasetConfig.fileId;
+  const selectedTarget = datasetConfig.selectedTarget;
+  const selectedSensitive = datasetConfig.selectedSensitive;
+
+  const setGcsUri = (v) => setDatasetConfig(p => ({ ...p, gcsUri: v }));
+  const setFileId = (v) => setDatasetConfig(p => ({ ...p, fileId: v }));
+  const setSelectedTarget = (v) => setDatasetConfig(p => ({ ...p, selectedTarget: v }));
+  const setSelectedSensitive = (v) => setDatasetConfig(p => ({ ...p, selectedSensitive: typeof v === "function" ? v(p.selectedSensitive) : v }));
 
   const onDrop = useCallback((files) => setFile(files[0]), []);
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -765,6 +782,37 @@ export default function DatasetAnalysis() {
                         <div key={i}>Class {k}: {v} samples</div>
                       ))}
                     </div>
+                    {mitResult?.output_gcs_uri && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const fileId = mitResult.output_gcs_uri.split("/").pop();
+                            const fileName = mitResult.strategy === "SMOTE + RandomUnderSampler"
+                              ? "smote_balanced_dataset.csv"
+                              : "debiased_dataset.csv";
+                            await downloadMitigatedFile(fileId, fileName);
+                          } catch (err) {
+                            alert("Download failed: " + err.message);
+                          }
+                        }}
+                        style={{
+                          marginTop: "12px",
+                          padding: "10px 20px",
+                          background: "#2563eb",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          fontWeight: "500",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px"
+                        }}
+                      >
+                        📥 Download Mitigated Dataset
+                      </button>
+                    )}
                   </>
                 ) : (
                   <div style={{ color: "#9ca3af", fontSize: "14px", paddingTop: "12px" }}>
@@ -839,6 +887,37 @@ export default function DatasetAnalysis() {
                   </p>
                 )}
                 <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#6b7280" }}>Saved to: {mitResult.output_gcs_uri}</p>
+                {mitResult?.output_gcs_uri && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const fileId = mitResult.output_gcs_uri.split("/").pop();
+                        const fileName = mitResult.strategy === "SMOTE + RandomUnderSampler"
+                          ? "smote_balanced_dataset.csv"
+                          : "debiased_dataset.csv";
+                        await downloadMitigatedFile(fileId, fileName);
+                      } catch (err) {
+                        alert("Download failed: " + err.message);
+                      }
+                    }}
+                    style={{
+                      marginTop: "12px",
+                      padding: "10px 20px",
+                      background: "#2563eb",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      fontWeight: "500",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px"
+                    }}
+                  >
+                    📥 Download Mitigated Dataset
+                  </button>
+                )}
               </div>
             )}
           </div>
