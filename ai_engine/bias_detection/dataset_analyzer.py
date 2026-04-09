@@ -98,6 +98,18 @@ class DatasetAnalyzer:
 
         results["bias_summary"] = self._generate_summary(results)
         results["overall_score"] = self._compute_score(results)
+        dimension_scores = FairnessMetrics.compute_dimension_scores(results)
+        results["dimension_scores"] = dimension_scores
+        # Compute dimension scores
+        try:
+            dimension_scores = FairnessMetrics.compute_dimension_scores(results)
+            results["dimension_scores"] = dimension_scores
+        except Exception as e:
+            print(f"Dimension score error: {e}")
+            results["dimension_scores"] = None
+
+        results["bias_summary"] = self._generate_summary(results)
+        results["overall_score"] = self._compute_score(results)
         return results
 
     def _get_dataset_info(

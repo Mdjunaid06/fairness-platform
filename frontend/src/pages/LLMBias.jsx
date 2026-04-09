@@ -432,6 +432,19 @@ export default function LLMBias() {
                   <div>
                     <div style={{ fontWeight: "500", fontSize: "15px" }}>
                       {test.test_id?.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                      {test.simulated && (
+                        <span style={{
+                          marginLeft: "8px",
+                          fontSize: "10px",
+                          background: "#fef3c7",
+                          color: "#92400e",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          border: "1px solid #fde68a"
+                        }}>
+                          SIMULATED
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize: "13px", color: "#6b7280", marginTop: "2px" }}>
                       Bias dimension: {test.bias_dimension?.replace(/_/g, " ")}

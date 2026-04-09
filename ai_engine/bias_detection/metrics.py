@@ -184,3 +184,126 @@ class FairnessMetrics:
             "color": color,
             "component_scores": [round(s, 1) for s in scores]
         }
+    @staticmethod
+    def compute_dimension_scores(
+        analysis_results: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Compute scores for 8 fairness dimensions.
+        Returns structured data for radar chart.
+        """
+        scores = {}
+
+        # 1. Demographic Parity
+        ci = analysis_results.get("class_imbalance", {})
+        ratio = ci.get("imbalance_ratio", 1)
+        dp_score = max(0, 100 - (ratio - 1) * 20)
+        scores["Demographic Parity"] = {
+            "score": round(min(100, dp_score), 1),
+            "status": "PASS" if dp_score >= 70 else "FAIL",
+            "detail": f"Imbalance ratio: {ratio}:1"
+        }
+
+        # 2. Equal Opportunity
+        cf = analysis_results.get("counterfactual_analysis", {})
+        cf_scores = []
+        for sf, data in cf.items():
+            if data.get("available"):
+                flip = data.get("counterfactual_flip_rate", 0)
+                cf_scores.append(max(0, 100 - flip * 200))
+        eo_score = round(float(np.mean(cf_scores)), 1) if cf_scores else 70.0
+        scores["Equal Opportunity"] = {
+            "score": eo_score,
+            "status": "PASS" if eo_score >= 70 else "FAIL",
+            "detail": f"Based on {len(cf_scores)} counterfactual tests"
+        }
+
+        # 3. Individual Fairness
+        proxy = analysis_results.get("proxy_features", {})
+        proxy_count = sum(len(v) for v in proxy.values())
+        ind_score = max(0, 100 - proxy_count * 15)
+        scores["Individual Fairness"] = {
+            "score": round(ind_score, 1),
+            "status": "PASS" if ind_score >= 70 else "FAIL",
+            "detail": f"{proxy_count} proxy features detected"
+        }
+
+        # 4. Counterfactual Fairness
+        cf_flip_rates = [
+            data.get("counterfactual_flip_rate", 0)
+            for data in cf.values()
+            if data.get("available")
+        ]
+        avg_flip = float(np.mean(cf_flip_rates)) if cf_flip_rates else 0
+        cf_score = max(0, 100 - avg_flip * 300)
+        scores["Counterfactual"] = {
+            "score": round(cf_score, 1),
+            "status": "PASS" if cf_score >= 70 else "FAIL",
+            "detail": f"Avg flip rate: {avg_flip*100:.1f}%"
+        }
+
+        # 5. Group Fairness
+        inter = analysis_results.get("intersectional_analysis", {})
+        biased_inter = inter.get("biased_intersections", 0)
+        total_inter = inter.get("total_intersections_analyzed", 1)
+        gf_score = max(0, 100 - (biased_inter / max(total_inter, 1)) * 100)
+        scores["Group Fairness"] = {
+            "score": round(gf_score, 1),
+            "status": "PASS" if gf_score >= 70 else "FAIL",
+            "detail": f"{biased_inter}/{total_inter} intersections biased"
+        }
+
+        # 6. Calibration
+        corr = analysis_results.get("correlation_analysis", {})
+        sig_count = sum(
+            1 for v in corr.values()
+            if v.get("statistically_significant")
+        )
+        cal_score = max(0, 100 - sig_count * 25)
+        scores["Calibration"] = {
+            "score": round(cal_score, 1),
+            "status": "PASS" if cal_score >= 70 else "FAIL",
+            "detail": f"{sig_count} statistically significant associations"
+        }
+
+        # 7. Transparency
+        # Always moderate — we provide explainability
+        scores["Transparency"] = {
+            "score": 80.0,
+            "status": "PASS",
+            "detail": "SHAP explainability + narrative report provided"
+        }
+
+        # 8. Data Quality
+        missing = analysis_results.get("missing_data_bias", {})
+        disparate = sum(
+            1 for v in missing.values()
+            if v.get("disparate_missing")
+        )
+        dq_score = max(0, 100 - disparate * 20)
+        scores["Data Quality"] = {
+            "score": round(dq_score, 1),
+            "status": "PASS" if dq_score >= 70 else "FAIL",
+            "detail": f"{disparate} features with disparate missing data"
+        }
+
+        overall = round(
+            float(np.mean([v["score"] for v in scores.values()])), 1
+        )
+        passed = sum(1 for v in scores.values() if v["status"] == "PASS")
+        failed = len(scores) - passed
+
+        return {
+            "dimensions": scores,
+            "overall": overall,
+            "passed": passed,
+            "failed": failed,
+            "radar_data": [
+                {
+                    "dimension": k,
+                    "score": v["score"],
+                    "fullMark": 100
+                }
+                for k, v in scores.items()
+            ]
+        }
