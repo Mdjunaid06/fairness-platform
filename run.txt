@@ -1,0 +1,12 @@
+# Terminal 1
+cd D:\fairness-platform\ai_engine
+venv\Scripts\activate
+uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+
+# Terminal 2  
+cd D:\fairness-platform\backend
+npm run dev
+
+# Terminal 3
+cd D:\fairness-platform\frontend
+npm run dev
