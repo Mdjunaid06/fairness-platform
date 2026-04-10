@@ -67,6 +67,25 @@ class DataResampler:
 
         df = self._load_data(gcs_uri)
 
+        # Validate target column is binary/categorical
+        unique_vals = df[target_column].nunique()
+        if unique_vals > 10:
+            return {
+                "strategy": "SMOTE skipped",
+                "reason": (
+                    f"Target column '{target_column}' has {unique_vals} "
+                    f"unique values. SMOTE requires a categorical target "
+                    f"with ≤10 classes. Please select a binary column "
+                    f"like 'loan_approved' (0/1)."
+                ),
+                "before_distribution": {},
+                "after_distribution": {},
+                "rows_before": len(df),
+                "rows_after": len(df),
+                "output_gcs_uri": gcs_uri,
+                "improvement": "Wrong target column — please use a binary target"
+            }
+
         # Encode categoricals
         encoders = {}
         df_enc = df.copy()

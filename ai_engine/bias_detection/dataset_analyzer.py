@@ -322,6 +322,14 @@ class DatasetAnalyzer:
                     groups.columns = [
                         sf1, sf2, "approval_rate", "count"
                     ]
+
+                    # Normalize if target is not binary
+                    max_val = df[target_col].max()
+                    if max_val > 1:
+                        groups["approval_rate"] = (
+                            groups["approval_rate"] / max_val
+                        )
+
                     groups = groups[groups["count"] >= 3]
 
                     if len(groups) == 0:
@@ -427,6 +435,11 @@ class DatasetAnalyzer:
 
             rate_a = float(group_a.mean())
             rate_b = float(group_b.mean())
+
+            max_val = df[target_col].max()
+            if max_val > 1:
+                rate_a = rate_a / max_val
+                rate_b = rate_b / max_val
 
             flip_rate = abs(rate_a - rate_b)
             affected_estimate = int(flip_rate * len(df))
