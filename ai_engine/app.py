@@ -10,6 +10,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from google.oauth2 import service_account
+
+if os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON"):
+    service_account_info = json.loads(
+        os.getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+    )
+
+    credentials = service_account.Credentials.from_service_account_info(
+        service_account_info
+    )
+
+    import google.auth
+    google.auth.default = lambda *args, **kwargs: (credentials, None)
 
 # ── JSON SERIALIZER ───────────────────────────────────────────
 class NumpyEncoder(json.JSONEncoder):
