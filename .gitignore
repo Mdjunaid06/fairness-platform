@@ -1,48 +1,48 @@
-# Node
-node_modules/
-npm-debug.log*
-.npm
-*.log
+    # Node
+    node_modules/
+    npm-debug.log*
+    .npm
+    *.log
 
-# Python
-__pycache__/
-*.py[cod]
-venv/
-env/
-.venv/
-*.pyc
+    # Python
+    __pycache__/
+    *.py[cod]
+    venv/
+    env/
+    .venv/
+    *.pyc
 
-# Environment variables — NEVER commit
-.env
-.env.local
-.env.*.local
-*.env
+    # Environment variables — NEVER commit
+    .env
+    .env.local
+    .env.*.local
+    *.env
 
-# Firebase — NEVER commit
-.firebase/
-firebase-debug.log
-.firebaserc
+    # Firebase — NEVER commit
+    .firebase/
+    firebase-debug.log
+    .firebaserc
 
-# Google Cloud — NEVER commit
-service-account-key.json
-*-firebase-adminsdk-*.json
-gcloud-credentials.json
+    # Google Cloud — NEVER commit
+    service-account-key.json
+    *-firebase-adminsdk-*.json
+    gcloud-credentials.json
 
-# Build outputs
-frontend/dist/
-frontend/build/
-*.tsbuildinfo
+    # Build outputs
+    frontend/dist/
+    frontend/build/
+    *.tsbuildinfo
 
-# IDE
-.vscode/
-.idea/
-.DS_Store
+    # IDE
+    .vscode/
+    .idea/
+    .DS_Store
 
-# Coverage
-coverage/
-.coverage
-htmlcov/
+    # Coverage
+    coverage/
+    .coverage
+    htmlcov/
 
-# Temp
-*.tmp
-tmp/
+    # Temp
+    *.tmp
+    tmp/
