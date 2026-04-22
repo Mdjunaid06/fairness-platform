@@ -1,11 +1,10 @@
 const admin = require("firebase-admin");
-const path = require("path");
 
 if (!admin.apps.length) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
   admin.initializeApp({
-    credential: admin.credential.cert(
-      path.resolve(process.env.GCS_KEY_FILE || "./service-account-key.json")
-    ),
+    credential: admin.credential.cert(serviceAccount),
     projectId: process.env.FIREBASE_PROJECT_ID,
     storageBucket: `${process.env.FIREBASE_PROJECT_ID}.firebasestorage.app`,
   });
