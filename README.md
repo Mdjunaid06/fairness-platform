@@ -13,7 +13,7 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-[🌐 Live Demo](#demo) • [📖 Docs](#setup) • [🎥 Video](#video) • [👥 Team](#team)
+[🌐 Live Demo](https://fairness-platform-6bd85.web.app) • [📖 Docs](#setup-instructions) • [🎥 Video](#demo-video) • [👥 Team](#team)
 
 </div>
 
@@ -23,7 +23,7 @@
 
 - [Problem Statement](#problem-statement)
 - [Our Solution](#our-solution)
-- [UN SDG Alignment](#sdg-alignment)
+- [UN SDG Alignment](#un-sdg-alignment)
 - [Features](#features)
 - [Architecture](#architecture)
 - [Google Technologies](#google-technologies)
@@ -214,17 +214,11 @@ User uploads CSV → Firestore Storage → AI Engine analyzes
 ### Model Audit
 ![Model Audit](docs/screenshots/model-audit.png)
 
-### LLM Bias Testing
-![LLM Testing](docs/screenshots/llm-testing.png)
-
-### Reports
-![Reports](docs/screenshots/reports.png)
-
 ---
 
 ## 🎥 Demo Video
 
-[![Demo Video](https://img.shields.io/badge/▶%20Watch%20Demo-YouTube-red?style=for-the-badge&logo=youtube)](https://youtube.com/YOUR_DEMO_LINK)
+[![Demo Video](https://img.shields.io/badge/▶%20Watch%20Demo-YouTube-red?style=for-the-badge&logo=youtube)](https://youtu.be/G6bnGVpALGc?si=NxNGgFEPN01hgipw)
 
 > Full walkthrough: Login → Upload Dataset → Analyze Bias → Apply Mitigation → Audit Model → Test LLM → View Reports
 
@@ -243,7 +237,7 @@ User uploads CSV → Firestore Storage → AI Engine analyzes
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/fairness-platform.git
+git clone https://github.com/Mdjunaid06/fairness-platform.git
 cd fairness-platform
 ```
 
@@ -496,10 +490,10 @@ refactor → code improvement
 
 | Branch | Owner | Folder |
 |--------|-------|--------|
-| `feature/ai-engine` | Member 1 | `ai_engine/` |
-| `feature/backend` | Member 2 | `backend/` |
-| `feature/frontend` | Member 3 | `frontend/` |
-| `feature/gcp` | Member 4 | `docs/`, deployment |
+| `feature/ai-engine` | Mohammad Junaid | `ai_engine/` |
+| `feature/backend` | Soham | `backend/` |
+| `feature/frontend` | Harsh Nawle | `frontend/` |
+| `feature/gcp` | Swarang | `docs/`, deployment |
 
 ---
 
@@ -507,13 +501,13 @@ refactor → code improvement
 
 | Member | Role | GitHub |
 |--------|------|--------|
-| MD Junaid | AI Engine + Project Lead | [@mdjunaid](https://github.com/mdjunaid) |
-| [Member 2] | Backend + Google Cloud | [@github2](https://github.com) |
-| [Member 3] | Frontend + UI/UX | [@github3](https://github.com) |
-| [Member 4] | Integration + DevOps | [@github4](https://github.com) |
+| Mohammad Junaid | AI Engine + Project Lead | [@Mdjunaid06](https://github.com/Mdjunaid06) |
+| Soham | Backend + Google Cloud | [@soham105k-dev](https://github.com/soham105k-dev) |
+| Harsh Nawle | Frontend + UI/UX | [@HarshNawle](https://github.com/HarshNawle) |
+| Swarang | Integration + DevOps | [@blitz-afk](https://github.com/blitz-afk) |
 
-**University:** [Your University Name]
-**GDSC Chapter:** [Your GDSC Chapter]
+**University:** D Y Patil College of Engineering, Akurdi, Pune
+**GDSC Chapter:** Google Developer Student Club DYPCOE Akurdi
 **Country:** India
 
 ---
@@ -566,9 +560,9 @@ Repository
 
 Demo
 ─────────────────────────────────────────────
-⏳ Screenshots in docs/screenshots/
-⏳ Demo video recorded (2-4 minutes)
-⏳ Live deployment URL
+✅ Screenshots in docs/screenshots/
+✅ Demo video recorded (2-4 minutes)
+✅ Live deployment URL: https://fairness-platform-6bd85.web.app/login
 ```
 
 ---
