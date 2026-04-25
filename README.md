@@ -15,29 +15,35 @@
 
 </div>
 
-[🌐 Live Demo](https://fairness-platform-6bd85.web.app) • [📖 Docs](#setup-instructions) • [🎥 Video](#demo-video) • [👥 Team](#team)
+<div align="center">
+
+<a href="https://fairness-platform-6bd85.web.app">🌐 Live Demo</a> • <a href="#setup-instructions">📖 Docs</a> • <a href="#demo-video">🎥 Video</a> • <a href="#team">👥 Team</a>
+
+</div>
 
 ---
 
+<a id="table-of-contents"></a>
 ## 📌 Table of Contents
 
-- [Problem Statement](#problem-statement)
-- [Our Solution](#our-solution)
-- [UN SDG Alignment](#un-sdg-alignment)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Google Technologies](#google-technologies)
-- [Tech Stack](#tech-stack)
-- [Screenshots](#screenshots)
-- [Demo Video](#demo-video)
-- [Setup Instructions](#setup-instructions)
-- [API Reference](#api-reference)
-- [Future Scope](#future-scope)
-- [Team](#team)
-- [License](#license)
+- <a href="#problem-statement">Problem Statement</a>
+- <a href="#our-solution">Our Solution</a>
+- <a href="#un-sdg-alignment">UN SDG Alignment</a>
+- <a href="#features">Features</a>
+- <a href="#architecture">Architecture</a>
+- <a href="#google-technologies">Google Technologies</a>
+- <a href="#tech-stack">Tech Stack</a>
+- <a href="#screenshots">Screenshots</a>
+- <a href="#demo-video">Demo Video</a>
+- <a href="#setup-instructions">Setup Instructions</a>
+- <a href="#api-reference">API Reference</a>
+- <a href="#future-scope">Future Scope</a>
+- <a href="#team">Team</a>
+- <a href="#license">License</a>
 
 ---
 
+<a id="problem-statement"></a>
 ## 🎯 Problem Statement
 
 AI systems are being deployed at massive scale in critical life decisions — **hiring, loans, medical diagnosis, criminal justice, and education**. Research consistently shows these systems perpetuate and amplify existing societal biases:
@@ -54,6 +60,7 @@ AI systems are being deployed at massive scale in critical life decisions — **
 
 ---
 
+<a id="our-solution"></a>
 ## 💡 Our Solution
 
 **Universal AI Fairness & Bias Detection Platform** is an end-to-end system that:
@@ -65,6 +72,7 @@ AI systems are being deployed at massive scale in critical life decisions — **
 
 ---
 
+<a id="un-sdg-alignment"></a>
 ## 🌍 UN SDG Alignment
 
 This project directly addresses:
@@ -78,6 +86,7 @@ This project directly addresses:
 
 ---
 
+<a id="features"></a>
 ## ✨ Features
 
 ### 🔍 Bias Detection
@@ -105,6 +114,7 @@ This project directly addresses:
 
 ---
 
+<a id="architecture"></a>
 ## 🏗️ Architecture
 
 ```
@@ -153,6 +163,7 @@ User uploads CSV → Firestore Storage → AI Engine analyzes
 
 ---
 
+<a id="google-technologies"></a>
 ## ☁️ Google Technologies
 
 | Technology | Purpose | How We Use It |
@@ -166,6 +177,7 @@ User uploads CSV → Firestore Storage → AI Engine analyzes
 
 ---
 
+<a id="tech-stack"></a>
 ## 🛠️ Tech Stack
 
 ### Frontend
@@ -197,6 +209,7 @@ User uploads CSV → Firestore Storage → AI Engine analyzes
 
 ---
 
+<a id="screenshots"></a>
 ## 📸 Screenshots
 
 ### Login Page
@@ -216,6 +229,7 @@ User uploads CSV → Firestore Storage → AI Engine analyzes
 
 ---
 
+<a id="demo-video"></a>
 ## 🎥 Demo Video
 
 [![Demo Video](https://img.shields.io/badge/▶%20Watch%20Demo-YouTube-red?style=for-the-badge&logo=youtube)](https://youtu.be/G6bnGVpALGc?si=NxNGgFEPN01hgipw)
@@ -224,6 +238,7 @@ User uploads CSV → Firestore Storage → AI Engine analyzes
 
 ---
 
+<a id="setup-instructions"></a>
 ## 🚀 Setup Instructions
 
 ### Prerequisites
@@ -347,6 +362,7 @@ age,gender,race,income,credit_score,loan_approved
 
 ---
 
+<a id="api-reference"></a>
 ## 📡 API Reference
 
 ### AI Engine (Port 8000)
@@ -385,6 +401,7 @@ All routes require `Authorization: Bearer <firebase-token>`
 
 ---
 
+<a id="future-scope"></a>
 ## 🔭 Future Scope
 
 | Feature | Priority | Description |
@@ -401,6 +418,7 @@ All routes require `Authorization: Bearer <firebase-token>`
 
 ---
 
+<a id="project-structure"></a>
 ## 📁 Project Structure
 
 ```
@@ -456,6 +474,7 @@ fairness-platform/
 
 ---
 
+<a id="contributing"></a>
 ## 🤝 Contributing
 
 ### Team Workflow
@@ -497,6 +516,7 @@ refactor → code improvement
 
 ---
 
+<a id="team"></a>
 ## 👥 Team
 
 | Member | Role | GitHub |
@@ -512,6 +532,7 @@ refactor → code improvement
 
 ---
 
+<a id="submission-checklist"></a>
 ## ✅ Submission Checklist
 
 ```
@@ -567,6 +588,7 @@ Demo
 
 ---
 
+<a id="license"></a>
 ## 📄 License
 
 MIT License © 2026 Team FairAI
