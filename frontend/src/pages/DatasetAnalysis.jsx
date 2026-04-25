@@ -764,30 +764,94 @@ export default function DatasetAnalysis() {
                 </div>
               </div>
 
-              <div style={{ background: mitResult ? "#f0fdf4" : "#f9fafb", border: `2px solid ${mitResult ? "#22c55e" : "#e5e7eb"}`, borderRadius: "12px", padding: "20px" }}>
-                <p style={{ margin: "0 0 8px", fontWeight: "600", color: "#6b7280", fontSize: "13px", textTransform: "uppercase" }}>AFTER MITIGATION</p>
+{/* AFTER card */}
+              <div style={{
+                background: mitResult ? "#f0fdf4" : "#f9fafb",
+                border: `2px solid ${mitResult ? "#22c55e" : "#e5e7eb"}`,
+                borderRadius: "12px",
+                padding: "20px"
+              }}>
+                <p style={{ margin: "0 0 8px", fontWeight: "600", color: "#6b7280", fontSize: "13px", textTransform: "uppercase" }}>
+                  AFTER MITIGATION
+                </p>
                 {mitResult ? (
                   <>
-                    <div style={{ fontSize: "20px", fontWeight: "600", color: "#15803d", marginBottom: "8px" }}>✅ {mitResult.strategy}</div>
-                    <div style={{ fontSize: "14px", color: "#374151", marginBottom: "4px" }}>
-                      Rows: {mitResult.rows_before} → {mitResult.rows_after || mitResult.rows_before}
+                    <div style={{ fontSize: "20px", fontWeight: "600", color: "#15803d", marginBottom: "12px" }}>
+                      ✅ {mitResult.strategy}
                     </div>
+
+                    {/* Feature Removal result */}
                     {mitResult.columns_before && (
-                      <div style={{ fontSize: "14px", color: "#374151", marginBottom: "4px" }}>
-                        Columns: {mitResult.columns_before} → {mitResult.columns_after}
+                      <div style={{ marginBottom: "12px" }}>
+                        <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "4px" }}>COLUMNS</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: "28px", fontWeight: "700", color: "#dc2626" }}>{mitResult.columns_before}</div>
+                            <div style={{ fontSize: "11px", color: "#9ca3af" }}>before</div>
+                          </div>
+                          <div style={{ fontSize: "20px", color: "#9ca3af" }}>→</div>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: "28px", fontWeight: "700", color: "#16a34a" }}>{mitResult.columns_after}</div>
+                            <div style={{ fontSize: "11px", color: "#9ca3af" }}>after</div>
+                          </div>
+                        </div>
+                        {mitResult.removed_sensitive_features?.length > 0 && (
+                          <div style={{ marginTop: "8px", fontSize: "13px", color: "#374151" }}>
+                            Removed: <strong>{[
+                              ...mitResult.removed_sensitive_features,
+                              ...(mitResult.removed_proxy_features || [])
+                            ].join(", ")}</strong>
+                          </div>
+                        )}
                       </div>
                     )}
-                    <div style={{ fontSize: "13px", color: "#6b7280", marginTop: "8px" }}>
-                      {Object.entries(mitResult.after_distribution || {}).map(([k, v], i) => (
-                        <div key={i}>Class {k}: {v} samples</div>
-                      ))}
+
+                    {/* SMOTE result */}
+                    {mitResult.rows_before && (
+                      <div style={{ marginBottom: "12px" }}>
+                        <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "4px" }}>ROWS</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: "28px", fontWeight: "700", color: "#dc2626" }}>{mitResult.rows_before}</div>
+                            <div style={{ fontSize: "11px", color: "#9ca3af" }}>before</div>
+                          </div>
+                          <div style={{ fontSize: "20px", color: "#9ca3af" }}>→</div>
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ fontSize: "28px", fontWeight: "700", color: "#16a34a" }}>{mitResult.rows_after || mitResult.rows_before}</div>
+                            <div style={{ fontSize: "11px", color: "#9ca3af" }}>after</div>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: "8px" }}>
+                          <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "4px" }}>CLASS BALANCE</div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                            <div>
+                              <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "2px" }}>BEFORE</div>
+                              {Object.entries(mitResult.before_distribution || {}).map(([k, v], i) => (
+                                <div key={i} style={{ fontSize: "13px" }}>Class {k}: <strong>{v}</strong></div>
+                              ))}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "2px" }}>AFTER</div>
+                              {Object.entries(mitResult.after_distribution || {}).map(([k, v], i) => (
+                                <div key={i} style={{ fontSize: "13px", color: "#16a34a" }}>Class {k}: <strong>{v}</strong></div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "8px" }}>
+                      {mitResult.improvement}
                     </div>
-                    {mitResult?.output_gcs_uri && (
+
+                    {/* Download button */}
+                    {mitResult.output_gcs_uri && (
                       <button
                         onClick={async () => {
                           try {
                             const fileId = mitResult.output_gcs_uri.split("/").pop();
-                            const fileName = mitResult.strategy === "SMOTE + RandomUnderSampler"
+                            const fileName = mitResult.strategy?.includes("SMOTE")
                               ? "smote_balanced_dataset.csv"
                               : "debiased_dataset.csv";
                             await downloadMitigatedFile(fileId, fileName);
@@ -797,17 +861,15 @@ export default function DatasetAnalysis() {
                         }}
                         style={{
                           marginTop: "12px",
-                          padding: "10px 20px",
+                          width: "100%",
+                          padding: "10px",
                           background: "#2563eb",
                           color: "white",
                           border: "none",
                           borderRadius: "8px",
                           cursor: "pointer",
                           fontSize: "14px",
-                          fontWeight: "500",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px"
+                          fontWeight: "500"
                         }}
                       >
                         📥 Download Mitigated Dataset
@@ -816,7 +878,7 @@ export default function DatasetAnalysis() {
                   </>
                 ) : (
                   <div style={{ color: "#9ca3af", fontSize: "14px", paddingTop: "12px" }}>
-                    Apply a mitigation below to see the comparison
+                    Apply a mitigation strategy to see results here
                   </div>
                 )}
               </div>
