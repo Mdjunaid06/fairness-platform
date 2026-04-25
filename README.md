@@ -13,9 +13,9 @@
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-[🌐 Live Demo](https://fairness-platform-6bd85.web.app) • [📖 Docs](#setup-instructions) • [🎥 Video](#demo-video) • [👥 Team](#team)
-
 </div>
+
+[🌐 Live Demo](https://fairness-platform-6bd85.web.app) • [📖 Docs](#setup-instructions) • [🎥 Video](#demo-video) • [👥 Team](#team)
 
 ---
 
