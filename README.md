@@ -232,7 +232,7 @@ User uploads CSV → Firestore Storage → AI Engine analyzes
 <a id="demo-video"></a>
 ## 🎥 Demo Video
 
-[![Demo Video](https://img.shields.io/badge/▶%20Watch%20Demo-YouTube-red?style=for-the-badge&logo=youtube)](https://youtu.be/G6bnGVpALGc?si=NxNGgFEPN01hgipw)
+[![Demo Video](https://img.shields.io/badge/▶%20Watch%20Demo-YouTube-red?style=for-the-badge&logo=youtube)](https://youtu.be/ZDEMhvNhAys)
 
 > Full walkthrough: Login → Upload Dataset → Analyze Bias → Apply Mitigation → Audit Model → Test LLM → View Reports
 
